@@ -16,7 +16,7 @@
 <title>Staff Status Board</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
   color-scheme: light;
@@ -38,11 +38,12 @@
 html{ -webkit-text-size-adjust:100%; }
 body{
   margin:0; background:var(--bg); color:var(--ink);
-  font:400 15px/1.5 'Public Sans', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font:400 15px/1.5 'Inter', 'Noto Sans Bengali', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   font-variant-numeric:tabular-nums;
   padding-top:env(safe-area-inset-top,0px);
 }
-h1,h2,h3{ font-family:'Big Shoulders Display','Arial Narrow','Roboto Condensed',sans-serif; font-weight:700; margin:0; letter-spacing:.01em; }
+h1,h2,h3{ font-family:'Inter','Noto Sans Bengali',system-ui,sans-serif; font-weight:650; margin:0; letter-spacing:-.01em; }
+body{ font-feature-settings:'tnum' 1,'cv11' 1; }
 h1{ font-size:36px; line-height:1.05; }
 h2{ font-size:26px; line-height:1.1; }
 p{ margin:0; }
@@ -51,7 +52,7 @@ p{ margin:0; }
 
 /* header + tabs */
 .top{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 28px; padding:16px 0 0; border-bottom:1px solid var(--line); }
-.brand{ font:700 28px/1 'Big Shoulders Display','Arial Narrow','Roboto Condensed',sans-serif; padding-bottom:12px; }
+.brand{ font:700 22px/1 'Inter','Noto Sans Bengali',system-ui,sans-serif; letter-spacing:-.02em; padding-bottom:12px; }
 .tabs{ display:flex; gap:2px; }
 .tab{ font:inherit; font-weight:600; color:var(--ink-2); background:none; border:0; padding:10px 14px 12px; cursor:pointer; border-radius:0; }
 .tab:hover{ color:var(--ink); }
@@ -137,7 +138,7 @@ legend{ font-weight:600; padding:0; margin-bottom:8px; }
 .card{ background:var(--board); color:var(--board-ink); border-radius:10px; border-top:4px solid var(--c); padding:16px 18px 14px; min-width:0; display:flex; flex-direction:column; }
 .card .ch{ display:flex; align-items:center; gap:10px; }
 .card .ch h3{ font-size:22px; }
-.card .n{ font:700 64px/1 'Big Shoulders Display','Arial Narrow','Roboto Condensed',sans-serif; color:var(--c); margin-top:8px; }
+.card .n{ font:700 56px/1 'Inter',system-ui,sans-serif; letter-spacing:-.03em; font-variant-numeric:tabular-nums; color:var(--c); margin-top:8px; }
 .card .sub{ font-size:13px; color:var(--board-mute); margin-bottom:10px; }
 .plist{ list-style:none; margin:0; padding:0; border-top:1px solid var(--board-line); max-height:340px; overflow-y:auto; }
 .plist li{ padding:9px 0; border-bottom:1px solid var(--board-line); display:grid; grid-template-columns:minmax(0,1fr) auto; gap:0 10px; }
@@ -257,6 +258,7 @@ legend{ font-weight:600; padding:0; margin-bottom:8px; }
             <div class="field"><label class="lbl" for="f-to">Until (for several days)</label><input type="date" id="f-to"></div>
           </div>
           <label class="check"><input type="checkbox" id="f-skip" checked> Skip weekend days in this range</label>
+          <p class="hint" id="f-sum" style="margin:6px 0 0"></p>
           <div class="field" style="margin-top:18px">
             <label class="lbl" for="f-note">Note</label>
             <input type="text" id="f-note" maxlength="100" placeholder="Choose a status first">
@@ -484,7 +486,7 @@ async function makeFirebase(){
 /* ---- Demo (browser-only, nothing shared) ---- */
 function makeDemo(){
   const KEY = 'ssb-demo-v1', SES = 'ssb-demo-uid';
-  const seed = () => ({ users:{ 'd-admin':{ name:'Demo Administrator', email:'admin@demo.local', title:'IT Administrator', role:'admin', active:true, tracked:false, mustChange:false, password:'Admin-demo-1' } }, entries:{}, settings:{ weekend:[0,6] } });
+  const seed = () => ({ users:{ 'd-admin':{ name:'Demo Administrator', email:'admin@demo.local', title:'IT Administrator', role:'admin', active:true, tracked:false, mustChange:false, password:'Admin-demo-1' } }, entries:{}, settings:{ weekend:[5,6] } });
   const load = () => { try { const v = JSON.parse(localStorage.getItem(KEY)); if (v && v.users) return v; } catch (e) {} return seed(); };
   let st = load(), authCb = null;
   const subs = new Set(), fire = () => subs.forEach(f => f());
@@ -534,7 +536,7 @@ function makeDemo(){
 /* ================= state ================= */
 const todayStr = ymd(new Date());
 const S = {
-  me:null, dir:[], users:[], entries:{}, settings:{ weekend:[0,6] }, ready:{ dir:false, entries:false },
+  me:null, dir:[], users:[], entries:{}, settings:{ weekend:[5,6] }, ready:{ dir:false, entries:false },
   view:'login', mode:'day', date:todayStr, q:'', today:todayStr,
   editingId:null, editName:'', editTitle:'', pending:null, loginPw:''
 };
@@ -543,7 +545,7 @@ let B = null, unsubs = [], authToken = 0;
 const showAlert = t => { const a = $('#alert'); a.textContent = t; a.hidden = !t; };
 const setMsg = (sel, text, kind) => { const m = $(sel); m.textContent = text; m.className = 'msg' + (kind ? ' ' + kind : ''); };
 const isAdmin = () => !!S.me && S.me.role === 'admin';
-const isWeekend = s => (S.settings.weekend || [0,6]).includes(parseYmd(s).getDay());
+const isWeekend = s => (S.settings.weekend || [5,6]).includes(parseYmd(s).getDay());
 const peopleOnBoard = () => S.dir.filter(p => p.active !== false && p.tracked !== false).sort(byName);
 const days = id => S.entries[id] || {};
 const entryOf = (id, d) => { const e = days(id)[d]; return e && STATUS[e.s] ? e : null; };
@@ -637,7 +639,7 @@ function subscribe(){
   const err = e => showAlert(e.message || 'Could not load data.');
   unsubs.push(B.subDirectory(list => { S.dir = list; S.ready.dir = true; rerender(); }, err));
   unsubs.push(B.subEntries(map => { S.entries = map; S.ready.entries = true; rerender(); }, err));
-  unsubs.push(B.subSettings(s => { S.settings = { weekend: Array.isArray(s.weekend) ? s.weekend : [0,6] }; rerender(); }, err));
+  unsubs.push(B.subSettings(s => { S.settings = { weekend: Array.isArray(s.weekend) ? s.weekend : [5,6] }; rerender(); }, err));
   if (isAdmin()) unsubs.push(B.subUsers(list => { S.users = list; rerender(); }, err));
 }
 async function signIn(ev){
@@ -689,6 +691,7 @@ function renderCheckin(){
   const e = entryOf(S.me.uid, S.today);
   $('#ci-today').textContent = 'Today, ' + fmtLong(S.today) + ': ' + (e ? STATUS[e.s].label + (e.n ? ' (' + e.n + ')' : '') : 'no entry yet') + '.';
   const f = $('#f-from'); if (!f.value) f.value = S.today;
+  updateRangeHint();
   renderMine();
 }
 function myRanges(){
@@ -699,6 +702,14 @@ function myRanges(){
     else out.push({ from:k, to:k, s:e.s, n:e.n || '' });
   });
   return out.slice(0, 60);
+}
+function updateRangeHint(){
+  const from = $('#f-from').value, to = $('#f-to').value || from, el = $('#f-sum');
+  if (!el) return;
+  if (!from || to < from){ el.textContent = ''; return; }
+  const skip = $('#f-skip').checked; let d = from, all = 0, work = 0, g = 0;
+  while (d <= to && g++ < 400){ all++; if (!(skip && isWeekend(d))) work++; d = addDays(d, 1); }
+  el.textContent = all === 1 ? '' : (work + (work === 1 ? ' day' : ' days') + ' will be saved' + (skip && work !== all ? ' (' + (all - work) + ' weekend skipped)' : '') + '.');
 }
 function renderMine(){
   const list = myRanges(), ul = $('#mine-list');
@@ -974,6 +985,7 @@ function wire(){
     try { await deferredInstall.userChoice; } catch (e) {}
     deferredInstall = null; updateInstall();
   });
+  ['#f-from','#f-to','#f-skip'].forEach(q => $(q).addEventListener('change', () => { if (q === '#f-from' && $('#f-to').value && $('#f-to').value < $('#f-from').value) $('#f-to').value = ''; updateRangeHint(); }));
   $('#install-x').addEventListener('click', () => { try { localStorage.setItem('ssb-install-x', '1'); } catch (e) {} $('#install').hidden = true; });
   $('#l-forgot').addEventListener('click', forgot);
   $('#signout').addEventListener('click', async () => { try { await B.signOut(); } catch (e) {} });
