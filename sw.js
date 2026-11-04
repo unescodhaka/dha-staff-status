@@ -9,9 +9,9 @@
  * Firestore), and it never stores staff data. Everything you see after signing in is
  * always loaded live from the server.
  */
-const CACHE = 'ssb-shell-v2';
+const CACHE = 'ssb-shell-v3';
 const SHELL = ['./', 'index.html', 'firebase-config.js', 'manifest.webmanifest',
-  'icon-192.png', 'icon-512.png', 'maskable-512.png', 'apple-touch-icon.png'];
+  'logo.png', 'icon-192.png', 'icon-512.png', 'maskable-512.png', 'apple-touch-icon.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {

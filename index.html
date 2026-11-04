@@ -196,13 +196,28 @@ legend{ font-weight:600; padding:0; margin-bottom:8px; }
   .me{ padding-bottom:8px; gap:8px; }
 }
 @media (prefers-reduced-motion:reduce){ *{ transition:none !important; animation:none !important; } }
+
+.brand{ display:flex; align-items:center; gap:10px; }
+.logo{ height:30px; width:auto; max-width:140px; object-fit:contain; display:block; }
+.logo-lg{ height:56px; width:auto; max-width:100%; object-fit:contain; display:block; margin:0 0 16px; }
+.office{ font-weight:600; color:var(--ink-2); margin:0 0 4px; }
+.helpbox{ color:var(--ink-2); font-size:14px; margin:0 0 14px; }
+.controls .exp{ display:flex; gap:8px; }
+.print-title{ display:none; }
+@media print{
+  .top,.tabs,.controls,.install,.offline,.demo,#alert,.actions,.helpbox{ display:none !important; }
+  .print-title{ display:block; font-size:12px; color:#444; margin-bottom:8px; }
+  body{ background:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .card,.chartbox{ break-inside:avoid; }
+  .unrep:not([open]) > p{ display:block; }
+}
 </style>
 </head>
 <body>
 <div id="demo" class="demo" hidden>Demo mode: nothing is shared or saved online. Everything stays in this browser. <button id="demo-reset">Reset demo data</button></div>
 <div class="wrap">
   <header class="top">
-    <div class="brand">Staff Status Board</div>
+    <div class="brand"><img class="logo" src="logo.png" alt="" onerror="this.remove()"><span>Staff Status Board</span></div>
     <nav class="tabs" id="tabs" aria-label="Sections" hidden></nav>
     <div class="me" id="me" hidden><span id="me-name"></span><button class="btn small" id="signout">Sign out</button></div>
   </header>
@@ -218,6 +233,8 @@ legend{ font-weight:600; padding:0; margin-bottom:8px; }
   <main>
     <!-- Sign in -->
     <section id="view-login" class="view" hidden>
+      <img class="logo-lg" src="logo.png" alt="" onerror="this.remove()">
+      <p class="office">DHA Staff Status Board</p>
       <h1>Sign in</h1>
       <p class="lede">Use the email and password your administrator gave you.</p>
       <form class="authbox" id="login-form" novalidate>
@@ -246,6 +263,7 @@ legend{ font-weight:600; padding:0; margin-bottom:8px; }
     <!-- Check-in -->
     <section id="view-checkin" class="view" hidden>
       <h1 id="ci-hello">Hello</h1>
+      <p class="helpbox">Choose where you will be, pick the date (and "Until" if it is for several days), then press Save. You can change or remove an entry at any time.</p>
       <p class="lede" id="ci-today"></p>
       <div class="checkin-grid">
         <div>
@@ -291,8 +309,11 @@ legend{ font-weight:600; padding:0; margin-bottom:8px; }
           <button class="iconbtn" id="nav-next" aria-label="Next">&rsaquo;</button>
           <button class="btn small" id="nav-today">Today</button>
         </div>
+        <div class="exp"><button class="btn small" id="exp-csv" type="button">Export CSV</button><button class="btn small" id="exp-print" type="button">Print / PDF</button></div>
         <input type="search" id="dash-q" class="search" placeholder="Search by name" aria-label="Search by name">
       </div>
+      <p class="helpbox">Each card lists who is where. Switch between Day, Month and Year; use Export or Print for reports.</p>
+      <div class="print-title" id="print-title"></div>
       <div id="dash-body"></div>
     </section>
 
@@ -321,6 +342,19 @@ legend{ font-weight:600; padding:0; margin-bottom:8px; }
           <p class="hint">Give these to them privately. They will be asked to choose a new password when they sign in.</p>
           <div class="actions" style="margin-top:12px"><button class="btn small" id="secret-done" type="button">Done</button></div>
         </div>
+      </div>
+      <div class="sect">
+        <h2>Enter a status for someone</h2>
+        <p class="hint">For a colleague who forgot to check in. Saves for the dates you choose.</p>
+        <div class="grid2">
+          <div class="field"><label class="lbl" for="a-who">Person</label><select id="a-who"></select></div>
+          <div class="field"><label class="lbl" for="a-st">Status</label><select id="a-st"></select></div>
+          <div class="field"><label class="lbl" for="a-from">Date</label><input type="date" id="a-from"></div>
+          <div class="field"><label class="lbl" for="a-to">Until (optional)</label><input type="date" id="a-to"></div>
+        </div>
+        <label class="check"><input type="checkbox" id="a-skip" checked> Skip weekend days in this range</label>
+        <div class="field" style="margin-top:12px"><label class="lbl" for="a-note">Note</label><input type="text" id="a-note" maxlength="100"></div>
+        <div class="actions"><button class="btn primary" id="a-save" type="button">Save status</button><button class="btn" id="a-clear" type="button">Clear these days</button><span id="a-msg" class="msg" aria-live="polite" style="margin:0"></span></div>
       </div>
       <div class="sect">
         <h2>Everyone with an account</h2>
@@ -713,19 +747,20 @@ function updateRangeHint(){
 }
 function renderMine(){
   const list = myRanges(), ul = $('#mine-list');
-  if (!list.length){ ul.innerHTML = '<li class="dim">Nothing saved yet.</li>'; return; }
+  if (!list.length){ ul.innerHTML = '<li class="dim">Nothing saved yet. Choose a status on the left and press Save status.</li>'; return; }
   ul.innerHTML = list.map(r => {
     const when = r.from === r.to ? fmtDay(r.from) : fmtDay(r.from) + ' to ' + fmtDay(r.to);
     return '<li><span class="when">' + esc(when) + '</span><span class="what">' + pill(r.s) + (r.n ? '<span class="txt">' + esc(r.n) + '</span>' : '') + '</span>' +
       '<button class="btn small" data-rm-from="' + r.from + '" data-rm-to="' + r.to + '" aria-label="Remove entry for ' + esc(when) + '">Remove</button></li>';
   }).join('');
 }
-function buildUpdates(from, to, status, note, skip){
+function buildUpdates(from, to, status, note, skip, uid){
+  uid = uid || S.me.uid;
   const up = {}; let d = from, n = 0, guard = 0;
   while (d <= to && guard++ < 400){
     if (!(status && skip && isWeekend(d))){
       if (status) up[d] = note ? { s:status, n:note } : { s:status };
-      else if (days(S.me.uid)[d]) up[d] = null;
+      else if (days(uid)[d]) up[d] = null;
       else { d = addDays(d, 1); continue; }
       n++;
     }
@@ -750,6 +785,51 @@ async function saveEntry(clear){
     setMsg('#ci-msg', clear ? 'Cleared ' + span + '.' : 'Saved ' + STATUS[st].label + ' for ' + span + '.', 'ok');
   } catch (e) { setMsg('#ci-msg', e.message, 'err'); }
   b1.disabled = b2.disabled = false;
+}
+async function adminSave(clear){
+  const uid = $('#a-who').value, st = $('#a-st').value, from = $('#a-from').value, to = $('#a-to').value || from;
+  if (!uid) return setMsg('#a-msg', 'Choose a person.', 'err');
+  if (!from) return setMsg('#a-msg', 'Choose a date.', 'err');
+  if (to < from) return setMsg('#a-msg', '"Until" must be on or after the start date.', 'err');
+  if ((parseYmd(to) - parseYmd(from)) / 86400000 > 366) return setMsg('#a-msg', 'Choose a range of one year or less.', 'err');
+  const note = $('#a-note').value.trim().slice(0, 100);
+  const { up, n } = buildUpdates(from, to, clear ? null : st, note, $('#a-skip').checked, uid);
+  if (!n) return setMsg('#a-msg', clear ? 'No saved entries in those days.' : 'Those days are all weekend days.', 'err');
+  const b = [$('#a-save'), $('#a-clear')]; b.forEach(x => x.disabled = true);
+  try {
+    await B.saveEntries(uid, up);
+    const who = (S.dir.find(x => x.id === uid) || {}).name || 'this person';
+    setMsg('#a-msg', (clear ? 'Cleared ' : 'Saved ' + STATUS[st].label + ' for ') + who + ', ' + (from === to ? fmtDay(from) : fmtDay(from) + ' to ' + fmtDay(to)) + '.', 'ok');
+  } catch (e) { setMsg('#a-msg', e.message, 'err'); }
+  b.forEach(x => x.disabled = false);
+}
+function csvCell(v){
+  v = String(v == null ? '' : v);
+  if (/^[=+\-@\t\r]/.test(v)) v = "'" + v;
+  return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+}
+function exportCsv(){
+  const p = period(), people = peopleOnBoard(), rows = [];
+  const tot = id => { const c = { leave:0, telework:0, meeting:0, mission:0 }; const m = days(id); Object.keys(m).forEach(d => { if (d >= p.from && d <= p.to && m[d] && STATUS[m[d].s]) c[m[d].s]++; }); return c; };
+  const totHead = CARD_ORDER.map(k => STATUS[k].label + ' (days)'), totVals = id => { const c = tot(id); return CARD_ORDER.map(k => c[k]); };
+  if (S.mode === 'day'){
+    rows.push(['Name', 'Title', 'Status', 'Note']);
+    people.forEach(x => { const e = days(x.id)[S.date]; rows.push([x.name, x.title || '', e && STATUS[e.s] ? STATUS[e.s].label : 'No entry', e ? e.n || '' : '']); });
+  } else if (S.mode === 'month'){
+    const y = +S.date.slice(0, 4), m = +S.date.slice(5, 7), dim = daysInMonth(y, m), h = ['Name', 'Title'];
+    for (let d = 1; d <= dim; d++) h.push(String(d));
+    rows.push(h.concat(totHead));
+    people.forEach(x => { const r = [x.name, x.title || '']; for (let d = 1; d <= dim; d++){ const e = days(x.id)[y + '-' + pad(m) + '-' + pad(d)]; r.push(e && STATUS[e.s] ? STATUS[e.s].letter : ''); } rows.push(r.concat(totVals(x.id))); });
+    rows.push([]); rows.push(['Key: ' + OPT_ORDER.map(k => STATUS[k].letter + ' = ' + STATUS[k].label).join(', ')]);
+  } else {
+    rows.push(['Name', 'Title'].concat(MON, totHead));
+    people.forEach(x => { const r = [x.name, x.title || '']; for (let mo = 1; mo <= 12; mo++){ let c = 0; const m = days(x.id); Object.keys(m).forEach(d => { if (d.slice(0, 4) === p.from.slice(0, 4) && +d.slice(5, 7) === mo && m[d] && STATUS[m[d].s]) c++; }); r.push(c || ''); } rows.push(r.concat(totVals(x.id))); });
+  }
+  const csv = '\uFEFF' + rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' }));
+  a.download = 'staff-status-' + (S.mode === 'day' ? S.date : S.mode === 'month' ? S.date.slice(0, 7) : S.date.slice(0, 4)) + '.csv';
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
 }
 async function removeRange(from, to){
   const { up, n } = buildUpdates(from, to, null, '', false);
@@ -851,8 +931,8 @@ function renderDash(){
   let html = '<h2 class="dash-title">' + esc(g.p.title) + '</h2>';
   if (S.mode === 'day' && isWeekend(S.date)) html += '<p class="banner">This is a weekend day, so entries are not expected.</p>';
   html += '<div class="cards">' + CARD_ORDER.map(k => cardHtml(k, g.res[k])).join('') + '</div>';
-  if (S.mode === 'day' && g.unreported.length)
-    html += '<details class="unrep"><summary>' + g.unreported.length + ' of ' + g.total + ' have no entry for this day</summary><p>' + g.unreported.map(x => esc(x.name)).join(', ') + '</p></details>';
+  if (S.mode === 'day' && g.unreported.length && isAdmin() && !isWeekend(S.date))
+    html += '<details class="unrep" open><summary>' + g.unreported.length + ' of ' + g.total + ' have not checked in for this day</summary><p>' + g.unreported.map(x => esc(x.name)).join(', ') + '</p></details>';
   if (S.mode !== 'day') html += chartHtml();
   el.innerHTML = html;
 }
@@ -873,6 +953,11 @@ function renderStaff(){
     wk.dataset.built = '1';
   }
   $$('input[data-wd]', wk).forEach(c => { c.checked = (S.settings.weekend || []).includes(+c.dataset.wd); });
+  const aw = $('#a-who'), keep = aw.value;
+  aw.innerHTML = '<option value="">Choose a person</option>' + peopleOnBoard().map(x => '<option value="' + x.id + '">' + esc(x.name) + '</option>').join('');
+  aw.value = keep;
+  const as = $('#a-st'); if (!as.options.length){ as.innerHTML = OPT_ORDER.map(k => '<option value="' + k + '">' + STATUS[k].label + '</option>').join(''); }
+  if (!$('#a-from').value) $('#a-from').value = S.today;
   const el = $('#people');
   const ed = $('#edit-name'); if (ed){ S.editName = ed.value; S.editTitle = $('#edit-title').value; }
   if (!S.users.length){ el.innerHTML = '<p class="empty">Loading…</p>'; return; }
@@ -971,6 +1056,10 @@ function wire(){
     else if (t.dataset && t.dataset.wd !== undefined) saveWeekend();
     else if (t.id === 'c-role') $('#c-tracked').checked = t.value === 'staff';
   });
+  $('#exp-csv').addEventListener('click', exportCsv);
+  $('#exp-print').addEventListener('click', () => { $('#print-title').textContent = 'Staff Status Board - ' + period().title + ' - printed ' + fmtLong(S.today); window.print(); });
+  $('#a-save').addEventListener('click', () => adminSave(false));
+  $('#a-clear').addEventListener('click', () => adminSave(true));
   $('#nav-prev').addEventListener('click', () => shiftDate(-1));
   $('#nav-next').addEventListener('click', () => shiftDate(1));
   $('#nav-today').addEventListener('click', () => { S.date = S.today; renderDash(); });
