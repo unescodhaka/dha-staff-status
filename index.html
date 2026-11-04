@@ -202,6 +202,14 @@ legend{ font-weight:600; padding:0; margin-bottom:8px; }
 .logo-lg{ height:56px; width:auto; max-width:100%; object-fit:contain; display:block; margin:0 0 16px; }
 .office{ font-weight:600; color:var(--ink-2); margin:0 0 4px; }
 .helpbox{ color:var(--ink-2); font-size:14px; margin:0 0 14px; }
+.seg.sub{ flex-wrap:wrap; margin:14px 0 0; }
+.seg.sub button{ padding:9px 14px; }
+.rep table{ width:100%; border-collapse:collapse; margin:10px 0 18px; font-size:14px; }
+.rep th,.rep td{ text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); }
+.rep th{ font-weight:600; color:var(--ink-2); }
+.rep td.n,.rep th.n{ text-align:right; font-variant-numeric:tabular-nums; }
+.rep tr.tot td{ font-weight:700; border-top:2px solid var(--ink); }
+.rep .scroll{ overflow-x:auto; }
 .controls .exp{ display:flex; gap:8px; }
 .print-title{ display:none; }
 @media print{
@@ -233,7 +241,6 @@ legend{ font-weight:600; padding:0; margin-bottom:8px; }
   <main>
     <!-- Sign in -->
     <section id="view-login" class="view" hidden>
-      <img class="logo-lg" src="logo.png" alt="" onerror="this.remove()">
       <p class="office">DHA Staff Status Board</p>
       <h1>Sign in</h1>
       <p class="lede">Use the email and password your administrator gave you.</p>
@@ -283,7 +290,7 @@ legend{ font-weight:600; padding:0; margin-bottom:8px; }
           </div>
           <div class="actions">
             <button class="btn primary" id="save-btn">Save status</button>
-            <button class="btn" id="clear-btn">Clear these days</button>
+            <button class="btn" id="clear-btn" type="button">Clear selection</button>
           </div>
           <div id="ci-msg" class="msg" aria-live="polite"></div>
         </div>
@@ -291,6 +298,7 @@ legend{ font-weight:600; padding:0; margin-bottom:8px; }
           <h2>Your entries</h2>
           <p class="hint">Last 7 days and everything coming up.</p>
           <ul class="mine-list" id="mine-list"></ul>
+          <div class="actions"><button class="btn" id="clear-all" type="button" hidden>Clear all my entries</button></div>
         </div>
       </div>
     </section>
@@ -298,10 +306,11 @@ legend{ font-weight:600; padding:0; margin-bottom:8px; }
     <!-- Dashboard -->
     <section id="view-dash" class="view" hidden>
       <div class="controls">
-        <div class="seg" role="group" aria-label="Period">
+        <div class="seg" id="dash-seg" role="group" aria-label="Period">
           <button data-mode="day">Day</button>
           <button data-mode="month">Month</button>
           <button data-mode="year">Year</button>
+          <button data-mode="report">Report</button>
         </div>
         <div class="nav">
           <button class="iconbtn" id="nav-prev" aria-label="Previous">&lsaquo;</button>
@@ -310,6 +319,7 @@ legend{ font-weight:600; padding:0; margin-bottom:8px; }
           <button class="btn small" id="nav-today">Today</button>
         </div>
         <div class="exp"><button class="btn small" id="exp-csv" type="button">Export CSV</button><button class="btn small" id="exp-print" type="button">Print / PDF</button></div>
+        <select id="r-who" class="search" aria-label="Choose staff for the report" hidden style="margin-left:0;min-width:200px"></select>
         <input type="search" id="dash-q" class="search" placeholder="Search by name" aria-label="Search by name">
       </div>
       <p class="helpbox">Each card lists who is where. Switch between Day, Month and Year; use Export or Print for reports.</p>
@@ -319,10 +329,17 @@ legend{ font-weight:600; padding:0; margin-bottom:8px; }
 
     <!-- Staff (administrators) -->
     <section id="view-staff" class="view" hidden>
-      <h1>Staff</h1>
-      <p class="lede">Only administrators can add people. Each person signs in with the email and password you set here, and must choose their own password the first time.</p>
-      <div class="sect" style="margin-top:22px">
+      <h1>Admin</h1>
+      <p class="lede">Manage people, enter statuses for colleagues, and set office options.</p>
+      <div class="seg sub" id="admin-sub" role="group" aria-label="Admin sections">
+        <button data-sub="people">People</button>
+        <button data-sub="add">Add person</button>
+        <button data-sub="status">Enter status</button>
+        <button data-sub="settings">Settings</button>
+      </div>
+      <div class="sect" data-subview="add" style="margin-top:22px">
         <h2>Add a person</h2>
+        <p class="hint">Each person signs in with the email and password you set here, and must choose their own password the first time.</p>
         <form id="add-form" novalidate>
           <div class="grid2" style="margin-top:6px">
             <div class="field"><label class="lbl" for="c-name">Staff name</label><input type="text" id="c-name" maxlength="80" autocomplete="off"></div>
@@ -343,7 +360,7 @@ legend{ font-weight:600; padding:0; margin-bottom:8px; }
           <div class="actions" style="margin-top:12px"><button class="btn small" id="secret-done" type="button">Done</button></div>
         </div>
       </div>
-      <div class="sect">
+      <div class="sect" data-subview="status" style="margin-top:22px">
         <h2>Enter a status for someone</h2>
         <p class="hint">For a colleague who forgot to check in. Saves for the dates you choose.</p>
         <div class="grid2">
@@ -356,11 +373,11 @@ legend{ font-weight:600; padding:0; margin-bottom:8px; }
         <div class="field" style="margin-top:12px"><label class="lbl" for="a-note">Note</label><input type="text" id="a-note" maxlength="100"></div>
         <div class="actions"><button class="btn primary" id="a-save" type="button">Save status</button><button class="btn" id="a-clear" type="button">Clear these days</button><span id="a-msg" class="msg" aria-live="polite" style="margin:0"></span></div>
       </div>
-      <div class="sect">
+      <div class="sect" data-subview="people" style="margin-top:22px">
         <h2>Everyone with an account</h2>
         <div id="people"></div>
       </div>
-      <div class="sect">
+      <div class="sect" data-subview="settings" style="margin-top:22px">
         <h2>Weekend days</h2>
         <div class="weekdays" id="weekdays"></div>
         <p class="hint">Skipped when staff choose "Skip weekend days", and noted on the dashboard.</p>
@@ -513,6 +530,10 @@ async function makeFirebase(){
       await authM.updatePassword(u, next);
     }),
     clearMustChange: wrap(uid => fsM.updateDoc(fsM.doc(db, 'users', uid), { mustChange:false })),
+    ensureDirectory: wrap(async (uid, p) => {
+      const ref = fsM.doc(db, 'directory', uid), snap = await fsM.getDoc(ref);
+      if (!snap.exists() || !snap.data().name) await fsM.setDoc(ref, { name:p.name, title:p.title || '', active:true, tracked:p.tracked !== false }, { merge:true });
+    }),
     sendReset: wrap(async email => { await authM.sendPasswordResetEmail(auth, email); })
   };
 }
@@ -563,6 +584,7 @@ function makeDemo(){
       u.password = next; persist();
     },
     clearMustChange: async uid => { st.users[uid].mustChange = false; persist(); },
+    ensureDirectory: async () => {},
     sendReset: async () => { /* no email in demo */ }
   };
 }
@@ -572,7 +594,7 @@ const todayStr = ymd(new Date());
 const S = {
   me:null, dir:[], users:[], entries:{}, settings:{ weekend:[5,6] }, ready:{ dir:false, entries:false },
   view:'login', mode:'day', date:todayStr, q:'', today:todayStr,
-  editingId:null, editName:'', editTitle:'', pending:null, loginPw:''
+  sub:'people', rwho:'', editingId:null, editName:'', editTitle:'', pending:null, loginPw:''
 };
 let B = null, unsubs = [], authToken = 0;
 
@@ -580,7 +602,7 @@ const showAlert = t => { const a = $('#alert'); a.textContent = t; a.hidden = !t
 const setMsg = (sel, text, kind) => { const m = $(sel); m.textContent = text; m.className = 'msg' + (kind ? ' ' + kind : ''); };
 const isAdmin = () => !!S.me && S.me.role === 'admin';
 const isWeekend = s => (S.settings.weekend || [5,6]).includes(parseYmd(s).getDay());
-const peopleOnBoard = () => S.dir.filter(p => p.active !== false && p.tracked !== false).sort(byName);
+const peopleOnBoard = () => S.dir.filter(p => p.name && p.active !== false && p.tracked !== false).sort(byName);
 const days = id => S.entries[id] || {};
 const entryOf = (id, d) => { const e = days(id)[d]; return e && STATUS[e.s] ? e : null; };
 
@@ -613,7 +635,7 @@ function tabsFor(){
   const t = [];
   if (S.me && S.me.tracked) t.push(['checkin', 'My check-in']);
   t.push(['dash', 'Dashboard']);
-  if (isAdmin()) t.push(['staff', 'Staff']);
+  if (isAdmin()) t.push(['staff', 'Admin']);
   t.push(['account', 'My account']);
   return t;
 }
@@ -658,6 +680,7 @@ async function handleAuth(u){
     }
     S.me = Object.assign({}, p, { uid:u.uid, email:u.email || p.email });
     subscribe();
+    if (S.me.role === 'admin' && !S.me.mustChange) B.ensureDirectory(u.uid, S.me).catch(() => {});
     show(S.me.mustChange ? 'force' : (S.me.tracked ? 'checkin' : 'dash'));
   } catch (e) {
     if (token !== authToken) return;
@@ -747,6 +770,7 @@ function updateRangeHint(){
 }
 function renderMine(){
   const list = myRanges(), ul = $('#mine-list');
+  $('#clear-all').hidden = !Object.keys(days(S.me.uid)).length;
   if (!list.length){ ul.innerHTML = '<li class="dim">Nothing saved yet. Choose a status on the left and press Save status.</li>'; return; }
   ul.innerHTML = list.map(r => {
     const when = r.from === r.to ? fmtDay(r.from) : fmtDay(r.from) + ' to ' + fmtDay(r.to);
@@ -809,10 +833,11 @@ function csvCell(v){
   return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
 }
 function exportCsv(){
-  const p = period(), people = peopleOnBoard(), rows = [];
+  const p = period(), people = peopleOnBoard(); let rows = [], fname = '';
   const tot = id => { const c = { leave:0, telework:0, meeting:0, mission:0 }; const m = days(id); Object.keys(m).forEach(d => { if (d >= p.from && d <= p.to && m[d] && STATUS[m[d].s]) c[m[d].s]++; }); return c; };
   const totHead = CARD_ORDER.map(k => STATUS[k].label + ' (days)'), totVals = id => { const c = tot(id); return CARD_ORDER.map(k => c[k]); };
-  if (S.mode === 'day'){
+  if (S.mode === 'report'){ const rc = reportCsv(); rows = rc.rows; fname = rc.name; }
+  else if (S.mode === 'day'){
     rows.push(['Name', 'Title', 'Status', 'Note']);
     people.forEach(x => { const e = days(x.id)[S.date]; rows.push([x.name, x.title || '', e && STATUS[e.s] ? STATUS[e.s].label : 'No entry', e ? e.n || '' : '']); });
   } else if (S.mode === 'month'){
@@ -828,8 +853,28 @@ function exportCsv(){
   const csv = '\uFEFF' + rows.map(r => r.map(csvCell).join(',')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' }));
-  a.download = 'staff-status-' + (S.mode === 'day' ? S.date : S.mode === 'month' ? S.date.slice(0, 7) : S.date.slice(0, 4)) + '.csv';
+  a.download = (fname || 'staff-status-' + (S.mode === 'day' ? S.date : S.mode === 'month' ? S.date.slice(0, 7) : S.date.slice(0, 4))) + '.csv';
   document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+function resetCheckinForm(){
+  $$('input[name="st"]').forEach(r => { r.checked = false; });
+  $$('.opt').forEach(o => o.classList.remove('on'));
+  $('#f-note').value = ''; $('#f-note').placeholder = 'Choose a status first';
+  $('#f-from').value = S.today; $('#f-to').value = ''; $('#f-skip').checked = true;
+  setMsg('#ci-msg', '', ''); updateRangeHint();
+}
+let clearAllTimer = 0;
+async function clearAllEntries(){
+  const b = $('#clear-all');
+  if (!b.dataset.sure){
+    b.dataset.sure = '1'; b.textContent = 'Tap again to remove ALL your entries';
+    clearTimeout(clearAllTimer); clearAllTimer = setTimeout(() => { delete b.dataset.sure; b.textContent = 'Clear all my entries'; }, 5000);
+    return;
+  }
+  clearTimeout(clearAllTimer); delete b.dataset.sure; b.textContent = 'Clear all my entries';
+  const up = {}; Object.keys(days(S.me.uid)).forEach(d => { up[d] = null; });
+  if (!Object.keys(up).length) return;
+  try { await B.saveEntries(S.me.uid, up); setMsg('#ci-msg', 'All your entries were removed.', 'ok'); } catch (e) { setMsg('#ci-msg', e.message, 'err'); }
 }
 async function removeRange(from, to){
   const { up, n } = buildUpdates(from, to, null, '', false);
@@ -845,7 +890,9 @@ function period(){
   return { from:y + '-01-01', to:y + '-12-31', title:String(y), label:String(y) };
 }
 function renderNav(){
-  $$('.seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === S.mode)));
+  $$('#dash-seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === S.mode)));
+  const rw = $('#r-who'); rw.hidden = S.mode !== 'report'; $('#dash-q').hidden = S.mode === 'report';
+  if (S.mode === 'report'){ rw.innerHTML = '<option value="">All staff</option>' + peopleOnBoard().map(x => '<option value="' + x.id + '">' + esc(x.name) + '</option>').join(''); rw.value = S.rwho; }
   const lab = $('#nav-label'), p = period();
   if (S.mode === 'day') lab.innerHTML = '<input type="date" id="dash-date" value="' + S.date + '" aria-label="Choose a date">';
   else lab.textContent = p.label;
@@ -922,18 +969,68 @@ function chartHtml(){
   const legend = '<div class="legend" style="display:flex;flex-wrap:wrap;gap:6px 16px;margin:6px 4px 8px;color:var(--ink-2);font-size:13px">' + CARD_ORDER.map(k => '<span style="display:inline-flex;gap:6px;align-items:center">' + chip(k, true) + STATUS[k].label + '</span>').join('') + '</div>';
   return '<div class="chartbox"><h2>' + title + '</h2>' + legend + stackedChart(rows, labels, W, title + ' for ' + p.title) + '</div>';
 }
+function monthCounts(id, y){
+  const out = []; for (let i = 0; i < 12; i++) out.push({ leave:0, telework:0, meeting:0, mission:0 });
+  const m = days(id); Object.keys(m).forEach(d => { if (d.slice(0, 4) === String(y) && m[d] && STATUS[m[d].s]) out[+d.slice(5, 7) - 1][m[d].s]++; });
+  return out;
+}
+function reportData(){
+  const y = +S.date.slice(0, 4), people = peopleOnBoard(), who = people.find(x => x.id === S.rwho);
+  if (who){
+    const mc = monthCounts(who.id, y), tot = { leave:0, telework:0, meeting:0, mission:0 };
+    mc.forEach(c => CARD_ORDER.forEach(k => { tot[k] += c[k]; }));
+    const m = days(who.id), det = Object.keys(m).filter(d => d.slice(0, 4) === String(y) && m[d] && STATUS[m[d].s]).sort().map(d => ({ d, s:m[d].s, n:m[d].n || '' }));
+    return { y, who, mc, tot, det };
+  }
+  const rows = people.map(x => { const mc = monthCounts(x.id, y), t = { leave:0, telework:0, meeting:0, mission:0 }; mc.forEach(c => CARD_ORDER.forEach(k => { t[k] += c[k]; })); return { p:x, t }; });
+  const tot = { leave:0, telework:0, meeting:0, mission:0 }; rows.forEach(r => CARD_ORDER.forEach(k => { tot[k] += r.t[k]; }));
+  return { y, who:null, rows, tot };
+}
+const sumOf = t => CARD_ORDER.reduce((a, k) => a + t[k], 0);
+function reportHtml(){
+  const r = reportData(), head = CARD_ORDER.map(k => '<th class="n">' + STATUS[k].label + '</th>').join('');
+  const cells = t => CARD_ORDER.map(k => '<td class="n">' + (t[k] || '–') + '</td>').join('') + '<td class="n"><b>' + (sumOf(t) || '–') + '</b></td>';
+  let h = '<div class="rep">';
+  if (r.who){
+    h += '<h2 class="dash-title">' + esc(r.who.name) + ' — ' + r.y + '</h2>' + (r.who.title ? '<p class="hint">' + esc(r.who.title) + '</p>' : '');
+    h += '<div class="scroll"><table><thead><tr><th>Month</th>' + head + '<th class="n">Total days</th></tr></thead><tbody>' +
+      r.mc.map((c, i) => '<tr><td>' + MONL[i] + '</td>' + cells(c) + '</tr>').join('') + '<tr class="tot"><td>Whole year</td>' + cells(r.tot) + '</tr></tbody></table></div>';
+    h += '<h2>All entries in ' + r.y + '</h2>';
+    h += r.det.length ? '<div class="scroll"><table><thead><tr><th>Date</th><th>Status</th><th>Note</th></tr></thead><tbody>' + r.det.map(x => '<tr><td>' + esc(fmtDay(x.d)) + '</td><td>' + STATUS[x.s].label + '</td><td>' + esc(x.n) + '</td></tr>').join('') + '</tbody></table></div>' : '<p class="empty">No entries for this person in ' + r.y + '.</p>';
+  } else {
+    h += '<h2 class="dash-title">All staff — ' + r.y + '</h2><p class="hint">Days recorded in the year. Choose a person above for a month-by-month report.</p>';
+    h += '<div class="scroll"><table><thead><tr><th>Name</th><th>Title</th>' + head + '<th class="n">Total days</th></tr></thead><tbody>' +
+      r.rows.map(x => '<tr><td>' + esc(x.p.name) + '</td><td>' + esc(x.p.title || '') + '</td>' + cells(x.t) + '</tr>').join('') + '<tr class="tot"><td>All staff</td><td></td>' + cells(r.tot) + '</tr></tbody></table></div>';
+  }
+  return h + '</div>';
+}
+function reportCsv(){
+  const r = reportData(), head = CARD_ORDER.map(k => STATUS[k].label + ' (days)'), rows = [];
+  const vals = t => CARD_ORDER.map(k => t[k]).concat([sumOf(t)]);
+  if (r.who){
+    rows.push(['Report for', r.who.name, r.who.title || '', r.y]); rows.push([]);
+    rows.push(['Month'].concat(head, ['Total days']));
+    r.mc.forEach((c, i) => rows.push([MONL[i]].concat(vals(c)))); rows.push(['Whole year'].concat(vals(r.tot))); rows.push([]);
+    rows.push(['Date', 'Status', 'Note']); r.det.forEach(x => rows.push([x.d, STATUS[x.s].label, x.n]));
+  } else {
+    rows.push(['Name', 'Title'].concat(head, ['Total days']));
+    r.rows.forEach(x => rows.push([x.p.name, x.p.title || ''].concat(vals(x.t)))); rows.push(['All staff', ''].concat(vals(r.tot)));
+  }
+  return { rows, name:'staff-report-' + (r.who ? r.who.name.replace(/[^A-Za-z0-9]+/g, '-') + '-' : 'all-') + r.y };
+}
 function renderDash(){
   renderNav();
   const el = $('#dash-body');
   if (!S.ready.dir || !S.ready.entries){ el.innerHTML = '<p class="empty">Loading…</p>'; return; }
   if (!peopleOnBoard().length){ el.innerHTML = '<p class="empty">' + (isAdmin() ? 'No one is on the dashboard yet. Add people in the Staff tab.' : 'No staff on the dashboard yet.') + '</p>'; return; }
+  if (S.mode === 'report'){ el.innerHTML = reportHtml(); return; }
   const g = gather();
   let html = '<h2 class="dash-title">' + esc(g.p.title) + '</h2>';
   if (S.mode === 'day' && isWeekend(S.date)) html += '<p class="banner">This is a weekend day, so entries are not expected.</p>';
   html += '<div class="cards">' + CARD_ORDER.map(k => cardHtml(k, g.res[k])).join('') + '</div>';
   if (S.mode === 'day' && g.unreported.length && isAdmin() && !isWeekend(S.date))
     html += '<details class="unrep" open><summary>' + g.unreported.length + ' of ' + g.total + ' have not checked in for this day</summary><p>' + g.unreported.map(x => esc(x.name)).join(', ') + '</p></details>';
-  if (S.mode !== 'day') html += chartHtml();
+  if (S.mode === 'month' || S.mode === 'year') html += chartHtml();
   el.innerHTML = html;
 }
 function shiftDate(dir){
@@ -947,6 +1044,8 @@ function shiftDate(dir){
 /* ================= staff (administrators) ================= */
 function renderStaff(){
   if (!isAdmin()) return;
+  $$('#admin-sub button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.sub === S.sub)));
+  $$('#view-staff [data-subview]').forEach(x => { x.hidden = x.dataset.subview !== S.sub; });
   const wk = $('#weekdays');
   if (!wk.dataset.built){
     wk.innerHTML = WDL.map((n, i) => '<label><input type="checkbox" data-wd="' + i + '"> ' + n + '</label>').join('');
@@ -1045,6 +1144,7 @@ function wire(){
   document.addEventListener('click', ev => {
     const t = ev.target.closest('button'); if (!t) return;
     if (t.dataset.tab){ show(t.dataset.tab); return; }
+    if (t.dataset.sub){ S.sub = t.dataset.sub; renderStaff(); return; }
     if (t.dataset.mode){ S.mode = t.dataset.mode; renderDash(); return; }
     if (t.dataset.rmFrom){ removeRange(t.dataset.rmFrom, t.dataset.rmTo); return; }
     if (t.dataset.act){ staffAct(t.dataset.act, t.dataset.id); return; }
@@ -1054,10 +1154,11 @@ function wire(){
     if (t.id === 'dash-date' && t.value){ S.date = t.value; renderDash(); }
     else if (t.name === 'st'){ $$('.opt').forEach(o => o.classList.toggle('on', o.contains(t) && t.checked)); $('#f-note').placeholder = STATUS[t.value].ph; }
     else if (t.dataset && t.dataset.wd !== undefined) saveWeekend();
+    else if (t.id === 'r-who'){ S.rwho = t.value; renderDash(); }
     else if (t.id === 'c-role') $('#c-tracked').checked = t.value === 'staff';
   });
   $('#exp-csv').addEventListener('click', exportCsv);
-  $('#exp-print').addEventListener('click', () => { $('#print-title').textContent = 'Staff Status Board - ' + period().title + ' - printed ' + fmtLong(S.today); window.print(); });
+  $('#exp-print').addEventListener('click', () => { $('#print-title').textContent = 'Staff Status Board - ' + (S.mode === 'report' ? 'Report ' + period().title : period().title) + ' - printed ' + fmtLong(S.today); window.print(); });
   $('#a-save').addEventListener('click', () => adminSave(false));
   $('#a-clear').addEventListener('click', () => adminSave(true));
   $('#nav-prev').addEventListener('click', () => shiftDate(-1));
@@ -1065,7 +1166,8 @@ function wire(){
   $('#nav-today').addEventListener('click', () => { S.date = S.today; renderDash(); });
   $('#dash-q').addEventListener('input', ev => { S.q = ev.target.value; renderDash(); });
   $('#save-btn').addEventListener('click', () => saveEntry(false));
-  $('#clear-btn').addEventListener('click', () => saveEntry(true));
+  $('#clear-btn').addEventListener('click', resetCheckinForm);
+  $('#clear-all').addEventListener('click', clearAllEntries);
   $('#f-note').addEventListener('keydown', ev => { if (ev.key === 'Enter') saveEntry(false); });
   $('#login-form').addEventListener('submit', signIn);
   $('#install-btn').addEventListener('click', async () => {
