@@ -4,7 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#14242C">
+<meta name="theme-color" content="#EDF1F1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F1A1F" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Staff Status">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Staff Status Board</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -168,6 +176,13 @@ legend{ font-weight:600; padding:0; margin-bottom:8px; }
 .readonly{ display:grid; grid-template-columns:auto 1fr; gap:6px 18px; margin-top:18px; max-width:460px; }
 .readonly dt{ color:var(--ink-2); } .readonly dd{ margin:0; font-weight:500; overflow-wrap:anywhere; }
 
+/* install + offline bars */
+.install,.offline{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin-top:14px; padding:10px 14px; border-radius:8px; background:var(--board); color:var(--board-ink); font-size:14px; }
+.install span{ flex:1 1 220px; }
+.install .btn{ min-height:34px; }
+.install .btn:not(.primary){ background:transparent; color:var(--board-ink); border-color:var(--board-line); }
+.install .btn.primary{ background:var(--board-ink); color:var(--board); border-color:var(--board-ink); }
+
 /* phone: tab bar at the bottom */
 @media (max-width:700px){
   .wrap{ padding:0 16px 96px; }
@@ -191,6 +206,12 @@ legend{ font-weight:600; padding:0; margin-bottom:8px; }
     <div class="me" id="me" hidden><span id="me-name"></span><button class="btn small" id="signout">Sign out</button></div>
   </header>
 
+  <div id="offline" class="offline" role="status" hidden>You are offline. Signing in and saving need an internet connection.</div>
+  <div id="install" class="install" hidden>
+    <span id="install-text"></span>
+    <button class="btn small primary" id="install-btn" type="button" hidden>Install</button>
+    <button class="btn small" id="install-x" type="button">Not now</button>
+  </div>
   <div id="alert" class="alert" role="alert" hidden></div>
 
   <main>
@@ -527,6 +548,30 @@ const peopleOnBoard = () => S.dir.filter(p => p.active !== false && p.tracked !=
 const days = id => S.entries[id] || {};
 const entryOf = (id, d) => { const e = days(id)[d]; return e && STATUS[e.s] ? e : null; };
 
+/* ================= install (PWA) + offline ================= */
+let deferredInstall = null;
+const isStandalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const installDismissed = () => { try { return localStorage.getItem('ssb-install-x') === '1'; } catch (e) { return false; } };
+function updateInstall(){
+  const el = $('#install');
+  const canShow = !!S.me && S.view !== 'force' && S.view !== 'login' && !isStandalone() && !installDismissed() && (deferredInstall || isIOS());
+  el.hidden = !canShow;
+  if (!canShow) return;
+  $('#install-btn').hidden = !deferredInstall;
+  $('#install-text').textContent = deferredInstall
+    ? 'Install this app on your phone for one-tap access.'
+    : 'To install on your iPhone: tap the Share button, then "Add to Home Screen".';
+}
+function updateOnline(){ $('#offline').hidden = navigator.onLine !== false; }
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInstall = e; updateInstall(); });
+window.addEventListener('appinstalled', () => { deferredInstall = null; updateInstall(); });
+window.addEventListener('online', updateOnline);
+window.addEventListener('offline', updateOnline);
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
+
 /* ================= views ================= */
 function tabsFor(){
   const t = [];
@@ -546,6 +591,7 @@ function show(v){
   $('#me').hidden = !S.me;
   if (S.me) $('#me-name').textContent = S.me.name;
   showAlert('');
+  updateInstall();
   window.scrollTo(0, 0);
   if (v === 'checkin') renderCheckin();
   else if (v === 'dash') renderDash();
@@ -922,6 +968,13 @@ function wire(){
   $('#clear-btn').addEventListener('click', () => saveEntry(true));
   $('#f-note').addEventListener('keydown', ev => { if (ev.key === 'Enter') saveEntry(false); });
   $('#login-form').addEventListener('submit', signIn);
+  $('#install-btn').addEventListener('click', async () => {
+    if (!deferredInstall) return;
+    deferredInstall.prompt();
+    try { await deferredInstall.userChoice; } catch (e) {}
+    deferredInstall = null; updateInstall();
+  });
+  $('#install-x').addEventListener('click', () => { try { localStorage.setItem('ssb-install-x', '1'); } catch (e) {} $('#install').hidden = true; });
   $('#l-forgot').addEventListener('click', forgot);
   $('#signout').addEventListener('click', async () => { try { await B.signOut(); } catch (e) {} });
   $('#force-form').addEventListener('submit', ev => { ev.preventDefault(); changePw('f', '#f-msg', '#f-btn', true); });
@@ -946,6 +999,7 @@ function wire(){
 /* ================= start ================= */
 async function start(){
   wire();
+  updateOnline();
   if (DEMO){
     $('#demo').hidden = false; $('#l-demo-hint').hidden = false;
     $('#demo-reset').addEventListener('click', () => window.__demoReset());
