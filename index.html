@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#14242C">
+<title>Staff Status Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme: light;
+  --bg:#EDF1F1; --surface:#FFFFFF; --ink:#172A33; --ink-2:#4F626B; --line:#CDD8DA;
+  --board:#14242C; --board-line:#2B414B; --board-ink:#E9F1F2; --board-mute:#A9BCC2;
+  --focus:#2F6DB5; --btn-bg:#172A33; --btn-ink:#F3F7F7; --danger:#B3261E; --ok:#1F7A4D;
+  --leave:#F2A33A; --tele:#5FA0E6; --meet:#D577B0; --mis:#5CBF8A; --on-c:#10202A;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme: dark;
+    --bg:#0F1A1F; --surface:#16252C; --ink:#E6EEF0; --ink-2:#9FB2B8; --line:#2A3D45;
+    --board:#0A1317; --board-line:#22353E; --board-ink:#E9F1F2; --board-mute:#9FB2B8;
+    --focus:#7DB3F0; --btn-bg:#E6EEF0; --btn-ink:#0F1A1F; --danger:#F2A19C; --ok:#6CD09B;
+  }
+}
+*,*::before,*::after{ box-sizing:border-box; }
+[hidden]{ display:none !important; }
+html{ -webkit-text-size-adjust:100%; }
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font:400 15px/1.5 'Public Sans', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-variant-numeric:tabular-nums;
+  padding-top:env(safe-area-inset-top,0px);
+}
+h1,h2,h3{ font-family:'Big Shoulders Display','Arial Narrow','Roboto Condensed',sans-serif; font-weight:700; margin:0; letter-spacing:.01em; }
+h1{ font-size:36px; line-height:1.05; }
+h2{ font-size:26px; line-height:1.1; }
+p{ margin:0; }
+.wrap{ max-width:1120px; margin:0 auto; padding:0 20px 56px; }
+:focus-visible{ outline:2px solid var(--focus); outline-offset:2px; }
+
+/* header + tabs */
+.top{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 28px; padding:16px 0 0; border-bottom:1px solid var(--line); }
+.brand{ font:700 28px/1 'Big Shoulders Display','Arial Narrow','Roboto Condensed',sans-serif; padding-bottom:12px; }
+.tabs{ display:flex; gap:2px; }
+.tab{ font:inherit; font-weight:600; color:var(--ink-2); background:none; border:0; padding:10px 14px 12px; cursor:pointer; border-radius:0; }
+.tab:hover{ color:var(--ink); }
+.tab[aria-current="page"]{ color:var(--ink); box-shadow:inset 0 -3px 0 var(--ink); }
+.me{ margin-left:auto; display:flex; align-items:center; gap:12px; padding-bottom:10px; font-weight:500; min-width:0; }
+.me span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:18ch; }
+.demo{ background:var(--board); color:var(--board-ink); padding:8px 20px; text-align:center; font-size:13px; }
+.demo button{ font:inherit; color:inherit; background:none; border:0; text-decoration:underline; cursor:pointer; padding:0 0 0 6px; }
+
+.view{ padding-top:26px; }
+.lede{ color:var(--ink-2); margin-top:6px; max-width:64ch; }
+.alert{ margin-top:16px; padding:10px 14px; border-radius:6px; border:1px solid var(--danger); color:var(--danger); font-weight:500; }
+.empty{ color:var(--ink-2); padding:24px 0; }
+.dim{ color:var(--ink-2); }
+.hint{ color:var(--ink-2); font-size:13px; margin-top:6px; }
+
+/* buttons + fields */
+.btn{ font:inherit; font-weight:600; padding:10px 16px; border-radius:6px; border:1px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer; min-height:40px; }
+.btn:hover{ border-color:var(--ink-2); }
+.btn.primary{ background:var(--btn-bg); color:var(--btn-ink); border-color:var(--btn-bg); }
+.btn.danger{ color:var(--danger); border-color:var(--danger); }
+.btn.small{ padding:5px 10px; font-size:13px; min-height:32px; }
+.btn.link{ background:none; border:0; padding:0; min-height:0; color:var(--ink-2); text-decoration:underline; font-weight:500; }
+.btn:disabled{ opacity:.5; cursor:not-allowed; }
+input[type="text"],input[type="email"],input[type="password"],input[type="date"],input[type="search"],select{
+  font:inherit; font-size:16px; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:9px 12px; max-width:100%; min-height:42px;
+}
+.lbl{ display:block; font-weight:600; margin-bottom:6px; }
+.field{ min-width:0; }
+.field input,.field select{ width:100%; }
+.authbox{ max-width:400px; display:grid; gap:16px; margin-top:22px; }
+.grid2{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:16px; }
+@media (max-width:600px){ .grid2{ grid-template-columns:1fr; } }
+.check{ display:flex; gap:8px; align-items:center; margin-top:14px; }
+.check input{ width:18px; height:18px; }
+.actions{ display:flex; flex-wrap:wrap; gap:10px; margin-top:20px; align-items:center; }
+.msg{ font-weight:500; min-height:1.5em; margin-top:12px; }
+.msg.ok{ color:var(--ok); } .msg.err{ color:var(--danger); }
+.pwrow{ display:flex; gap:8px; }
+.pwrow input{ flex:1; min-width:0; }
+
+/* status chips */
+.chip{ flex:none; min-width:26px; height:26px; padding:0 4px; border-radius:5px; background:var(--c); color:var(--on-c); font-weight:700; font-size:12px; display:inline-grid; place-items:center; }
+.chip.sm{ min-width:22px; height:22px; font-size:11px; }
+.pill{ display:inline-flex; align-items:center; gap:8px; white-space:nowrap; }
+
+/* check-in */
+.checkin-grid{ display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); gap:40px; margin-top:24px; align-items:start; }
+@media (max-width:860px){ .checkin-grid{ grid-template-columns:minmax(0,1fr); gap:30px; } }
+.checkin-grid > *{ min-width:0; }
+fieldset{ border:0; margin:0; padding:0; min-width:0; }
+legend{ font-weight:600; padding:0; margin-bottom:8px; }
+.opts{ display:grid; grid-template-columns:1fr; gap:10px; }
+.opt{ position:relative; display:flex; gap:12px; align-items:center; padding:12px 14px; border:1.5px solid var(--line); border-radius:8px; background:var(--surface); cursor:pointer; }
+.opt input{ position:absolute; opacity:0; inset:0; margin:0; cursor:pointer; }
+.opt.on{ border-color:var(--c); box-shadow:0 0 0 2px var(--c); }
+.opt:focus-within{ outline:2px solid var(--focus); outline-offset:2px; }
+.opt b{ display:block; font-weight:600; }
+.opt small{ color:var(--ink-2); }
+.mine-list{ list-style:none; margin:14px 0 0; padding:0; border-top:1px solid var(--line); }
+.mine-list li{ display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); }
+.mine-list .when{ flex:none; min-width:8.5em; font-weight:600; }
+.mine-list li > .btn{ margin-left:auto; }
+.mine-list .what{ display:flex; flex-wrap:wrap; gap:4px 10px; align-items:center; min-width:0; flex:1 1 12em; }
+.mine-list .txt{ overflow-wrap:anywhere; color:var(--ink-2); }
+
+/* dashboard */
+.controls{ display:flex; flex-wrap:wrap; gap:12px 18px; align-items:center; margin:6px 0 18px; }
+.seg{ display:inline-flex; border:1px solid var(--line); border-radius:6px; overflow:hidden; background:var(--surface); }
+.seg button{ font:inherit; font-weight:600; background:none; border:0; padding:9px 18px; color:var(--ink-2); cursor:pointer; min-height:40px; }
+.seg button[aria-pressed="true"]{ background:var(--btn-bg); color:var(--btn-ink); }
+.nav{ display:flex; align-items:center; gap:8px; }
+.nav .label{ font-weight:600; min-width:8em; text-align:center; }
+.iconbtn{ font:inherit; width:40px; height:40px; border-radius:6px; border:1px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer; font-size:20px; line-height:1; }
+.controls .search{ margin-left:auto; min-width:180px; }
+@media (max-width:600px){ .controls .search{ margin-left:0; width:100%; } }
+.dash-title{ margin:2px 0 14px; }
+.banner{ margin:-6px 0 14px; color:var(--ink-2); }
+
+.cards{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
+@media (max-width:1040px){ .cards{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:620px){ .cards{ grid-template-columns:minmax(0,1fr); } }
+.card{ background:var(--board); color:var(--board-ink); border-radius:10px; border-top:4px solid var(--c); padding:16px 18px 14px; min-width:0; display:flex; flex-direction:column; }
+.card .ch{ display:flex; align-items:center; gap:10px; }
+.card .ch h3{ font-size:22px; }
+.card .n{ font:700 64px/1 'Big Shoulders Display','Arial Narrow','Roboto Condensed',sans-serif; color:var(--c); margin-top:8px; }
+.card .sub{ font-size:13px; color:var(--board-mute); margin-bottom:10px; }
+.plist{ list-style:none; margin:0; padding:0; border-top:1px solid var(--board-line); max-height:340px; overflow-y:auto; }
+.plist li{ padding:9px 0; border-bottom:1px solid var(--board-line); display:grid; grid-template-columns:minmax(0,1fr) auto; gap:0 10px; }
+.plist li:last-child{ border-bottom:0; }
+.plist b{ font-weight:600; overflow-wrap:anywhere; }
+.plist .t{ grid-column:1; font-size:12.5px; color:var(--board-mute); overflow-wrap:anywhere; }
+.plist .d{ grid-row:1; grid-column:2; font-weight:600; color:var(--c); white-space:nowrap; }
+.plist .nt{ grid-column:1 / -1; font-size:13px; color:var(--board-ink); opacity:.85; overflow-wrap:anywhere; }
+.plist .none{ color:var(--board-mute); display:block; padding:12px 0 4px; border:0; }
+.unrep{ margin-top:14px; color:var(--ink-2); }
+.unrep summary{ cursor:pointer; font-weight:500; }
+.unrep p{ margin-top:6px; overflow-wrap:anywhere; }
+.chartbox{ border:1px solid var(--line); border-radius:10px; background:var(--surface); padding:16px 14px 8px; margin-top:22px; }
+.chartbox h2{ margin-bottom:6px; padding-left:4px; }
+.chartbox svg{ width:100%; height:auto; display:block; }
+
+/* staff admin */
+.sect{ margin-top:34px; }
+.sect h2{ margin-bottom:10px; }
+.people{ list-style:none; margin:0; padding:0; border:1px solid var(--line); border-radius:8px; background:var(--surface); }
+.people li{ padding:14px 16px; border-bottom:1px solid var(--line); display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; justify-content:space-between; }
+.people li:last-child{ border-bottom:0; }
+.people li.arch{ color:var(--ink-2); }
+.pmain{ min-width:0; flex:1 1 240px; }
+.pname{ font-weight:600; overflow-wrap:anywhere; }
+.pmeta{ color:var(--ink-2); font-size:13.5px; overflow-wrap:anywhere; }
+.tag{ display:inline-block; font-size:12px; font-weight:500; border:1px solid var(--line); border-radius:99px; padding:0 8px; margin:0 0 0 6px; color:var(--ink-2); white-space:nowrap; }
+.rowbtns{ display:flex; gap:6px; flex-wrap:wrap; }
+.editrow{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.editrow input{ width:100%; }
+@media (max-width:600px){ .editrow{ grid-template-columns:1fr; } }
+.secret{ border:1.5px dashed var(--ink-2); border-radius:8px; padding:14px 16px; margin-top:16px; max-width:560px; overflow-wrap:anywhere; }
+.secret code{ display:inline-block; font:600 18px/1.3 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; letter-spacing:.03em; margin:6px 10px 6px 0; user-select:all; }
+.weekdays{ display:flex; flex-wrap:wrap; gap:8px 18px; }
+.weekdays label{ display:inline-flex; gap:6px; align-items:center; min-height:32px; }
+.readonly{ display:grid; grid-template-columns:auto 1fr; gap:6px 18px; margin-top:18px; max-width:460px; }
+.readonly dt{ color:var(--ink-2); } .readonly dd{ margin:0; font-weight:500; overflow-wrap:anywhere; }
+
+/* phone: tab bar at the bottom */
+@media (max-width:700px){
+  .wrap{ padding:0 16px 96px; }
+  h1{ font-size:32px; }
+  .brand{ font-size:24px; padding-bottom:10px; }
+  .top{ padding-top:12px; }
+  .tabs{ position:fixed; left:0; right:0; bottom:0; z-index:20; background:var(--surface); border-top:1px solid var(--line); gap:0; padding-bottom:env(safe-area-inset-bottom,0px); }
+  .tab{ flex:1; padding:14px 4px; text-align:center; font-size:13.5px; box-shadow:none; }
+  .tab[aria-current="page"]{ box-shadow:inset 0 3px 0 var(--ink); }
+  .me{ padding-bottom:8px; gap:8px; }
+}
+@media (prefers-reduced-motion:reduce){ *{ transition:none !important; animation:none !important; } }
+</style>
+</head>
+<body>
+<div id="demo" class="demo" hidden>Demo mode: nothing is shared or saved online. Everything stays in this browser. <button id="demo-reset">Reset demo data</button></div>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">Staff Status Board</div>
+    <nav class="tabs" id="tabs" aria-label="Sections" hidden></nav>
+    <div class="me" id="me" hidden><span id="me-name"></span><button class="btn small" id="signout">Sign out</button></div>
+  </header>
+
+  <div id="alert" class="alert" role="alert" hidden></div>
+
+  <main>
+    <!-- Sign in -->
+    <section id="view-login" class="view" hidden>
+      <h1>Sign in</h1>
+      <p class="lede">Use the email and password your administrator gave you.</p>
+      <form class="authbox" id="login-form" novalidate>
+        <div class="field"><label class="lbl" for="l-email">Email</label><input type="email" id="l-email" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="email"></div>
+        <div class="field"><label class="lbl" for="l-pass">Password</label><input type="password" id="l-pass" autocomplete="current-password"></div>
+        <label class="check" style="margin:-4px 0 0"><input type="checkbox" id="l-keep" checked> Keep me signed in on this device</label>
+        <div id="l-msg" class="msg err" role="alert" style="margin:0"></div>
+        <div class="actions" style="margin:0"><button class="btn primary" id="l-btn" type="submit">Sign in</button><button class="btn link" id="l-forgot" type="button">Forgot password?</button></div>
+        <p class="hint" id="l-demo-hint" hidden>Demo sign-in: admin@demo.local / Admin-demo-1</p>
+      </form>
+    </section>
+
+    <!-- Forced password change -->
+    <section id="view-force" class="view" hidden>
+      <h1>Choose a new password</h1>
+      <p class="lede">You signed in with a password your administrator set. Choose your own to continue. Use at least 8 characters.</p>
+      <form class="authbox" id="force-form" novalidate>
+        <div class="field" id="f-cur-wrap" hidden><label class="lbl" for="f-cur">Current password</label><input type="password" id="f-cur" autocomplete="current-password"></div>
+        <div class="field"><label class="lbl" for="f-new">New password</label><input type="password" id="f-new" autocomplete="new-password"></div>
+        <div class="field"><label class="lbl" for="f-new2">Repeat new password</label><input type="password" id="f-new2" autocomplete="new-password"></div>
+        <div id="f-msg" class="msg" role="alert" style="margin:0"></div>
+        <div class="actions" style="margin:0"><button class="btn primary" id="f-btn" type="submit">Save password</button></div>
+      </form>
+    </section>
+
+    <!-- Check-in -->
+    <section id="view-checkin" class="view" hidden>
+      <h1 id="ci-hello">Hello</h1>
+      <p class="lede" id="ci-today"></p>
+      <div class="checkin-grid">
+        <div>
+          <fieldset>
+            <legend>Where will you be?</legend>
+            <div class="opts" id="opts"></div>
+          </fieldset>
+          <div class="grid2">
+            <div class="field"><label class="lbl" for="f-from">Date</label><input type="date" id="f-from"></div>
+            <div class="field"><label class="lbl" for="f-to">Until (for several days)</label><input type="date" id="f-to"></div>
+          </div>
+          <label class="check"><input type="checkbox" id="f-skip" checked> Skip weekend days in this range</label>
+          <div class="field" style="margin-top:18px">
+            <label class="lbl" for="f-note">Note</label>
+            <input type="text" id="f-note" maxlength="100" placeholder="Choose a status first">
+          </div>
+          <div class="actions">
+            <button class="btn primary" id="save-btn">Save status</button>
+            <button class="btn" id="clear-btn">Clear these days</button>
+          </div>
+          <div id="ci-msg" class="msg" aria-live="polite"></div>
+        </div>
+        <div>
+          <h2>Your entries</h2>
+          <p class="hint">Last 7 days and everything coming up.</p>
+          <ul class="mine-list" id="mine-list"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dashboard -->
+    <section id="view-dash" class="view" hidden>
+      <div class="controls">
+        <div class="seg" role="group" aria-label="Period">
+          <button data-mode="day">Day</button>
+          <button data-mode="month">Month</button>
+          <button data-mode="year">Year</button>
+        </div>
+        <div class="nav">
+          <button class="iconbtn" id="nav-prev" aria-label="Previous">&lsaquo;</button>
+          <div class="label" id="nav-label"></div>
+          <button class="iconbtn" id="nav-next" aria-label="Next">&rsaquo;</button>
+          <button class="btn small" id="nav-today">Today</button>
+        </div>
+        <input type="search" id="dash-q" class="search" placeholder="Search by name" aria-label="Search by name">
+      </div>
+      <div id="dash-body"></div>
+    </section>
+
+    <!-- Staff (administrators) -->
+    <section id="view-staff" class="view" hidden>
+      <h1>Staff</h1>
+      <p class="lede">Only administrators can add people. Each person signs in with the email and password you set here, and must choose their own password the first time.</p>
+      <div class="sect" style="margin-top:22px">
+        <h2>Add a person</h2>
+        <form id="add-form" novalidate>
+          <div class="grid2" style="margin-top:6px">
+            <div class="field"><label class="lbl" for="c-name">Staff name</label><input type="text" id="c-name" maxlength="80" autocomplete="off"></div>
+            <div class="field"><label class="lbl" for="c-title">Title</label><input type="text" id="c-title" maxlength="80" autocomplete="off"></div>
+            <div class="field"><label class="lbl" for="c-email">Email</label><input type="email" id="c-email" maxlength="120" autocomplete="off" autocapitalize="none" spellcheck="false" inputmode="email"></div>
+            <div class="field"><label class="lbl" for="c-pass">Password</label>
+              <div class="pwrow"><input type="text" id="c-pass" maxlength="128" autocomplete="off" spellcheck="false" autocapitalize="none"><button class="btn" id="c-gen" type="button">Generate</button></div>
+            </div>
+            <div class="field"><label class="lbl" for="c-role">Role</label><select id="c-role"><option value="staff">Staff</option><option value="admin">Administrator</option></select></div>
+          </div>
+          <label class="check"><input type="checkbox" id="c-tracked" checked> Show on the dashboard and allow daily check-ins</label>
+          <div class="actions"><button class="btn primary" id="c-btn" type="submit">Create account</button><span id="c-msg" class="msg" aria-live="polite" style="margin:0"></span></div>
+        </form>
+        <div class="secret" id="secret" hidden>
+          <div id="secret-title"></div>
+          <code id="secret-text"></code><button class="btn small" id="secret-copy" type="button">Copy</button>
+          <p class="hint">Give these to them privately. They will be asked to choose a new password when they sign in.</p>
+          <div class="actions" style="margin-top:12px"><button class="btn small" id="secret-done" type="button">Done</button></div>
+        </div>
+      </div>
+      <div class="sect">
+        <h2>Everyone with an account</h2>
+        <div id="people"></div>
+      </div>
+      <div class="sect">
+        <h2>Weekend days</h2>
+        <div class="weekdays" id="weekdays"></div>
+        <p class="hint">Skipped when staff choose "Skip weekend days", and noted on the dashboard.</p>
+      </div>
+    </section>
+
+    <!-- My account -->
+    <section id="view-account" class="view" hidden>
+      <h1>My account</h1>
+      <dl class="readonly">
+        <dt>Name</dt><dd id="acc-name"></dd>
+        <dt>Title</dt><dd id="acc-title"></dd>
+        <dt>Email</dt><dd id="acc-email"></dd>
+      </dl>
+      <p class="hint">Only your administrator can change your name, title or email.</p>
+      <h2 style="margin-top:32px">Change password</h2>
+      <form class="authbox" id="acc-form" style="margin-top:14px" novalidate>
+        <div class="field"><label class="lbl" for="a-cur">Current password</label><input type="password" id="a-cur" autocomplete="current-password"></div>
+        <div class="field"><label class="lbl" for="a-new">New password</label><input type="password" id="a-new" autocomplete="new-password"></div>
+        <div class="field"><label class="lbl" for="a-new2">Repeat new password</label><input type="password" id="a-new2" autocomplete="new-password"></div>
+        <div id="a-msg" class="msg" role="alert" style="margin:0"></div>
+        <div class="actions" style="margin:0"><button class="btn primary" id="a-btn" type="submit">Change password</button><button class="btn link" id="a-reset" type="button">Email me a reset link instead</button></div>
+      </form>
+    </section>
+  </main>
+</div>
+
+<script src="firebase-config.js"></script>
+<script type="module">
+'use strict';
+
+/* ================= helpers ================= */
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const parseYmd = s => { const p = s.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); };
+const addDays = (s, n) => { const d = parseYmd(s); d.setDate(d.getDate() + n); return ymd(d); };
+const daysInMonth = (y, m) => new Date(y, m, 0).getDate();
+const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const WDL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const fmtDay = s => { const d = parseYmd(s); return WD[d.getDay()] + ' ' + d.getDate() + ' ' + MON[d.getMonth()] + (d.getFullYear() !== new Date().getFullYear() ? ' ' + d.getFullYear() : ''); };
+const fmtLong = s => { const d = parseYmd(s); return WDL[d.getDay()] + ', ' + d.getDate() + ' ' + MONL[d.getMonth()] + ' ' + d.getFullYear(); };
+const byName = (a, b) => (a.name || '').localeCompare(b.name || '', undefined, {sensitivity:'base'});
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+const STATUS = {
+  leave:    { label:'On leave',        letter:'L',  cv:'--leave', sub:'Away from work for the day',               ph:'Reason (optional)' },
+  telework: { label:'Telework',        letter:'T',  cv:'--tele',  sub:'Working away from the office',             ph:'Working from (optional)' },
+  meeting:  { label:'Outside meeting', letter:'M',  cv:'--meet',  sub:'At a meeting or visit elsewhere',          ph:'Meeting and venue' },
+  mission:  { label:'On Mission',      letter:'Ms', cv:'--mis',   sub:'Official mission away from the office',    ph:'Destination and purpose' }
+};
+const OPT_ORDER = ['leave','telework','meeting','mission'];
+const CARD_ORDER = ['telework','leave','meeting','mission'];
+const chip = (k, small) => '<span class="chip' + (small ? ' sm' : '') + '" style="--c:var(' + STATUS[k].cv + ')" aria-hidden="true">' + STATUS[k].letter + '</span>';
+const pill = k => '<span class="pill">' + chip(k) + '<span>' + STATUS[k].label + '</span></span>';
+
+function randomPassword(){
+  const A = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789', a = new Uint32Array(10);
+  crypto.getRandomValues(a);
+  return Array.from(a, v => A[v % A.length]).join('');
+}
+
+/* ================= backends ================= */
+const CFG = window.FIREBASE_CONFIG || {};
+const DEMO = !CFG.apiKey || /^(PASTE|YOUR)/i.test(CFG.apiKey);
+
+function friendly(e){
+  const c = (e && e.code) || '';
+  const map = {
+    'auth/invalid-credential':'Wrong email or password.', 'auth/wrong-password':'Wrong email or password.', 'auth/user-not-found':'Wrong email or password.',
+    'auth/invalid-email':'Enter a valid email address.', 'auth/too-many-requests':'Too many attempts. Wait a few minutes and try again.',
+    'auth/network-request-failed':'Cannot reach the server. Check your connection.', 'auth/email-already-in-use':'That email already has an account.',
+    'auth/weak-password':'Choose a stronger password (at least 8 characters).', 'auth/requires-recent-login':'Sign in again, then try once more.',
+    'auth/user-disabled':'This account has been disabled.',
+    'permission-denied':'You do not have permission to do that.', 'unavailable':'Cannot reach the server. Try again.'
+  };
+  return new Error(map[c] || 'Something went wrong. Try again.');
+}
+
+/* ---- Firebase (Auth + Firestore) ---- */
+async function makeFirebase(){
+  const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
+  const [appM, authM, fsM] = await Promise.all([
+    import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')
+  ]);
+  const app = appM.initializeApp(CFG), auth = authM.getAuth(app), db = fsM.getFirestore(app);
+  const wrap = fn => async (...a) => { try { return await fn(...a); } catch (e) { throw (e instanceof Error && !e.code) ? e : friendly(e); } };
+  const subCol = (name, map) => (cb, err) => fsM.onSnapshot(fsM.collection(db, name), snap => cb(map(snap)), e => err && err(friendly(e)));
+  return {
+    onAuth: cb => authM.onAuthStateChanged(auth, u => cb(u ? { uid:u.uid, email:u.email } : null)),
+    signIn: wrap(async (email, pw, keep) => {
+      await authM.setPersistence(auth, keep ? authM.browserLocalPersistence : authM.browserSessionPersistence);
+      await authM.signInWithEmailAndPassword(auth, email, pw);
+    }),
+    signOut: wrap(() => authM.signOut(auth)),
+    getProfile: wrap(async uid => { const s = await fsM.getDoc(fsM.doc(db, 'users', uid)); return s.exists() ? s.data() : null; }),
+    subDirectory: subCol('directory', snap => snap.docs.map(d => ({ id:d.id, ...d.data() }))),
+    subUsers: subCol('users', snap => snap.docs.map(d => ({ id:d.id, ...d.data() }))),
+    subEntries: subCol('entries', snap => { const o = {}; snap.docs.forEach(d => { o[d.id] = (d.data() || {}).days || {}; }); return o; }),
+    subSettings: (cb, err) => fsM.onSnapshot(fsM.doc(db, 'config', 'settings'), s => cb(s.exists() ? s.data() : {}), e => err && err(friendly(e))),
+    saveEntries: wrap(async (uid, updates) => {
+      const ref = fsM.doc(db, 'entries', uid), sets = {}, dels = [];
+      Object.keys(updates).forEach(d => { if (updates[d]) sets[d] = updates[d]; else dels.push(d); });
+      if (Object.keys(sets).length) await fsM.setDoc(ref, { days: sets }, { merge: true });
+      if (dels.length){
+        const args = []; dels.forEach(d => { args.push(new fsM.FieldPath('days', d), fsM.deleteField()); });
+        try { await fsM.updateDoc(ref, ...args); } catch (e) { if (e.code !== 'not-found') throw e; }
+      }
+    }),
+    saveSettings: wrap(s => fsM.setDoc(fsM.doc(db, 'config', 'settings'), s, { merge: true })),
+    createUser: wrap(async d => {
+      const sec = appM.initializeApp(CFG, 'sec' + Date.now()), a2 = authM.getAuth(sec);
+      try {
+        let uid;
+        try { uid = (await authM.createUserWithEmailAndPassword(a2, d.email, d.password)).user.uid; }
+        catch (e) {
+          if (e.code !== 'auth/email-already-in-use') throw e;
+          // an earlier attempt may have created the sign-in but not the profile: finish it if the password matches
+          let cred = null;
+          try { cred = await authM.signInWithEmailAndPassword(a2, d.email, d.password); } catch (e2) { /* fall through */ }
+          if (!cred) throw new Error('That email already has an account.');
+          uid = cred.user.uid;
+          const ex = await fsM.getDoc(fsM.doc(db, 'users', uid));
+          if (ex.exists()) throw new Error('That email already has an account.');
+        }
+        const batch = fsM.writeBatch(db), now = fsM.serverTimestamp();
+        batch.set(fsM.doc(db, 'users', uid), { name:d.name, email:d.email, title:d.title, role:d.role, active:true, tracked:d.tracked, mustChange:true, createdAt:now });
+        batch.set(fsM.doc(db, 'directory', uid), { name:d.name, title:d.title, active:true, tracked:d.tracked });
+        await batch.commit();
+        return uid;
+      } finally {
+        try { await authM.signOut(a2); } catch (e) {}
+        try { await appM.deleteApp(sec); } catch (e) {}
+      }
+    }),
+    updateUser: wrap(async (uid, ch) => {
+      const batch = fsM.writeBatch(db), dir = {};
+      ['name','title','active','tracked'].forEach(k => { if (ch[k] !== undefined) dir[k] = ch[k]; });
+      batch.update(fsM.doc(db, 'users', uid), ch);
+      if (Object.keys(dir).length) batch.set(fsM.doc(db, 'directory', uid), dir, { merge: true });
+      await batch.commit();
+    }),
+    changePassword: wrap(async (cur, next) => {
+      const u = auth.currentUser;
+      await authM.reauthenticateWithCredential(u, authM.EmailAuthProvider.credential(u.email, cur));
+      await authM.updatePassword(u, next);
+    }),
+    clearMustChange: wrap(uid => fsM.updateDoc(fsM.doc(db, 'users', uid), { mustChange:false })),
+    sendReset: wrap(async email => { await authM.sendPasswordResetEmail(auth, email); })
+  };
+}
+
+/* ---- Demo (browser-only, nothing shared) ---- */
+function makeDemo(){
+  const KEY = 'ssb-demo-v1', SES = 'ssb-demo-uid';
+  const seed = () => ({ users:{ 'd-admin':{ name:'Demo Administrator', email:'admin@demo.local', title:'IT Administrator', role:'admin', active:true, tracked:false, mustChange:false, password:'Admin-demo-1' } }, entries:{}, settings:{ weekend:[0,6] } });
+  const load = () => { try { const v = JSON.parse(localStorage.getItem(KEY)); if (v && v.users) return v; } catch (e) {} return seed(); };
+  let st = load(), authCb = null;
+  const subs = new Set(), fire = () => subs.forEach(f => f());
+  const persist = () => { localStorage.setItem(KEY, JSON.stringify(st)); fire(); };
+  window.addEventListener('storage', e => { if (e.key === KEY){ st = load(); fire(); } });
+  const sub = (get) => (cb) => { const f = () => cb(get()); subs.add(f); f(); return () => subs.delete(f); };
+  const clean = (id, u) => { const c = Object.assign({ id }, u); delete c.password; return c; };
+  const uidOf = () => sessionStorage.getItem(SES);
+  const fail = m => Promise.reject(new Error(m));
+  window.__demoReset = () => { localStorage.removeItem(KEY); sessionStorage.removeItem(SES); location.reload(); };
+  return {
+    onAuth: cb => { authCb = cb; const u = st.users[uidOf()]; cb(u ? { uid:uidOf(), email:u.email } : null); },
+    signIn: async (email, pw) => {
+      const id = Object.keys(st.users).find(k => st.users[k].email === email);
+      if (!id || st.users[id].password !== pw) throw new Error('Wrong email or password.');
+      sessionStorage.setItem(SES, id); authCb && authCb({ uid:id, email });
+    },
+    signOut: async () => { sessionStorage.removeItem(SES); authCb && authCb(null); },
+    getProfile: async uid => st.users[uid] ? clean(uid, st.users[uid]) : null,
+    subDirectory: sub(() => Object.keys(st.users).map(k => ({ id:k, name:st.users[k].name, title:st.users[k].title, active:st.users[k].active, tracked:st.users[k].tracked }))),
+    subUsers: sub(() => Object.keys(st.users).map(k => clean(k, st.users[k]))),
+    subEntries: sub(() => JSON.parse(JSON.stringify(st.entries))),
+    subSettings: sub(() => st.settings),
+    saveEntries: async (uid, updates) => {
+      const days = st.entries[uid] || (st.entries[uid] = {});
+      Object.keys(updates).forEach(d => { if (updates[d]) days[d] = updates[d]; else delete days[d]; });
+      persist();
+    },
+    saveSettings: async s => { st.settings = Object.assign({}, st.settings, s); persist(); },
+    createUser: async d => {
+      if (Object.values(st.users).some(u => u.email === d.email)) throw new Error('That email already has an account.');
+      const id = 'd' + Math.random().toString(36).slice(2, 10);
+      st.users[id] = { name:d.name, email:d.email, title:d.title, role:d.role, active:true, tracked:d.tracked, mustChange:true, password:d.password };
+      persist(); return id;
+    },
+    updateUser: async (uid, ch) => { Object.assign(st.users[uid], ch); persist(); },
+    changePassword: async (cur, next) => {
+      const u = st.users[uidOf()];
+      if (u.password !== cur) throw new Error('The current password is not correct.');
+      u.password = next; persist();
+    },
+    clearMustChange: async uid => { st.users[uid].mustChange = false; persist(); },
+    sendReset: async () => { /* no email in demo */ }
+  };
+}
+
+/* ================= state ================= */
+const todayStr = ymd(new Date());
+const S = {
+  me:null, dir:[], users:[], entries:{}, settings:{ weekend:[0,6] }, ready:{ dir:false, entries:false },
+  view:'login', mode:'day', date:todayStr, q:'', today:todayStr,
+  editingId:null, editName:'', editTitle:'', pending:null, loginPw:''
+};
+let B = null, unsubs = [], authToken = 0;
+
+const showAlert = t => { const a = $('#alert'); a.textContent = t; a.hidden = !t; };
+const setMsg = (sel, text, kind) => { const m = $(sel); m.textContent = text; m.className = 'msg' + (kind ? ' ' + kind : ''); };
+const isAdmin = () => !!S.me && S.me.role === 'admin';
+const isWeekend = s => (S.settings.weekend || [0,6]).includes(parseYmd(s).getDay());
+const peopleOnBoard = () => S.dir.filter(p => p.active !== false && p.tracked !== false).sort(byName);
+const days = id => S.entries[id] || {};
+const entryOf = (id, d) => { const e = days(id)[d]; return e && STATUS[e.s] ? e : null; };
+
+/* ================= views ================= */
+function tabsFor(){
+  const t = [];
+  if (S.me && S.me.tracked) t.push(['checkin', 'My check-in']);
+  t.push(['dash', 'Dashboard']);
+  if (isAdmin()) t.push(['staff', 'Staff']);
+  t.push(['account', 'My account']);
+  return t;
+}
+function show(v){
+  S.view = v;
+  ['login','force','checkin','dash','staff','account'].forEach(x => { $('#view-' + x).hidden = x !== v; });
+  const inApp = !!S.me && !S.me.mustChange && v !== 'login' && v !== 'force';
+  const tabs = $('#tabs');
+  tabs.hidden = !inApp;
+  if (inApp) tabs.innerHTML = tabsFor().map(t => '<button class="tab" data-tab="' + t[0] + '"' + (t[0] === v ? ' aria-current="page"' : '') + '>' + t[1] + '</button>').join('');
+  $('#me').hidden = !S.me;
+  if (S.me) $('#me-name').textContent = S.me.name;
+  showAlert('');
+  window.scrollTo(0, 0);
+  if (v === 'checkin') renderCheckin();
+  else if (v === 'dash') renderDash();
+  else if (v === 'staff') renderStaff();
+  else if (v === 'account'){ $('#acc-name').textContent = S.me.name; $('#acc-title').textContent = S.me.title || '–'; $('#acc-email').textContent = S.me.email; setMsg('#a-msg', '', ''); }
+  else if (v === 'force'){ $('#f-cur-wrap').hidden = !!S.loginPw; setMsg('#f-msg', '', ''); }
+}
+function rerender(){
+  if (S.view === 'checkin') renderCheckin();
+  else if (S.view === 'dash') renderDash();
+  else if (S.view === 'staff') renderStaff();
+}
+
+/* ================= auth flow ================= */
+async function handleAuth(u){
+  const token = ++authToken;
+  teardown();
+  if (!u){ if (S.me) $('#l-email').value = ''; $('#l-pass').value = ''; S.me = null; S.loginPw = ''; show('login'); return; }
+  try {
+    const p = await B.getProfile(u.uid);
+    if (token !== authToken) return;
+    if (!p || p.active !== true){
+      await B.signOut();
+      setMsg('#l-msg', 'This account is not active. Ask your administrator.', 'err');
+      return;
+    }
+    S.me = Object.assign({}, p, { uid:u.uid, email:u.email || p.email });
+    subscribe();
+    show(S.me.mustChange ? 'force' : (S.me.tracked ? 'checkin' : 'dash'));
+  } catch (e) {
+    if (token !== authToken) return;
+    await B.signOut().catch(() => {});
+    setMsg('#l-msg', e.message, 'err');
+  }
+}
+function teardown(){
+  unsubs.forEach(f => { try { f && f(); } catch (e) {} });
+  unsubs = []; S.dir = []; S.users = []; S.entries = {}; S.ready = { dir:false, entries:false };
+}
+function subscribe(){
+  const err = e => showAlert(e.message || 'Could not load data.');
+  unsubs.push(B.subDirectory(list => { S.dir = list; S.ready.dir = true; rerender(); }, err));
+  unsubs.push(B.subEntries(map => { S.entries = map; S.ready.entries = true; rerender(); }, err));
+  unsubs.push(B.subSettings(s => { S.settings = { weekend: Array.isArray(s.weekend) ? s.weekend : [0,6] }; rerender(); }, err));
+  if (isAdmin()) unsubs.push(B.subUsers(list => { S.users = list; rerender(); }, err));
+}
+async function signIn(ev){
+  ev.preventDefault();
+  const email = $('#l-email').value.trim().toLowerCase(), pw = $('#l-pass').value;
+  if (!EMAIL_RE.test(email) || !pw) return setMsg('#l-msg', 'Enter your email and password.', 'err');
+  const b = $('#l-btn'); b.disabled = true; setMsg('#l-msg', '', '');
+  try { S.loginPw = pw; await B.signIn(email, pw, $('#l-keep').checked); $('#l-pass').value = ''; }
+  catch (e) { S.loginPw = ''; setMsg('#l-msg', e.message, 'err'); }
+  b.disabled = false;
+}
+async function forgot(){
+  const email = $('#l-email').value.trim().toLowerCase();
+  if (!EMAIL_RE.test(email)) return setMsg('#l-msg', 'Type your email above first, then choose "Forgot password?".', 'err');
+  try {
+    await B.sendReset(email);
+    setMsg('#l-msg', DEMO ? 'Demo mode: no email is sent. Ask the administrator to reset it.' : 'If that email has an account, a reset link is on its way. Check your inbox and spam folder.', 'ok');
+  } catch (e) { setMsg('#l-msg', e.message, 'err'); }
+}
+async function changePw(prefix, msgSel, btnSel, forced){
+  const cur = forced && S.loginPw ? S.loginPw : $('#' + prefix + '-cur').value;
+  const n1 = $('#' + prefix + '-new').value, n2 = $('#' + prefix + '-new2').value;
+  if (!cur) return setMsg(msgSel, 'Enter your current password.', 'err');
+  if (n1.length < 8) return setMsg(msgSel, 'Use at least 8 characters for the new password.', 'err');
+  if (n1 !== n2) return setMsg(msgSel, 'The two new passwords do not match.', 'err');
+  if (n1 === cur) return setMsg(msgSel, 'Choose a password different from the current one.', 'err');
+  const b = $(btnSel); b.disabled = true; setMsg(msgSel, '', '');
+  try {
+    await B.changePassword(cur, n1);
+    if (S.me.mustChange){ await B.clearMustChange(S.me.uid); S.me.mustChange = false; }
+    S.loginPw = '';
+    ['cur','new','new2'].forEach(k => { const el = $('#' + prefix + '-' + k); if (el) el.value = ''; });
+    if (forced) show(S.me.tracked ? 'checkin' : 'dash'); else setMsg(msgSel, 'Password changed.', 'ok');
+  } catch (e) { setMsg(msgSel, e.message, 'err'); }
+  b.disabled = false;
+}
+async function emailReset(){
+  try { await B.sendReset(S.me.email); setMsg('#a-msg', DEMO ? 'Demo mode: no email is sent.' : 'A reset link was sent to ' + S.me.email + '.', 'ok'); }
+  catch (e) { setMsg('#a-msg', e.message, 'err'); }
+}
+
+/* ================= check-in ================= */
+function buildOptions(){
+  $('#opts').innerHTML = OPT_ORDER.map(k => '<label class="opt" style="--c:var(' + STATUS[k].cv + ')"><input type="radio" name="st" value="' + k + '">' + chip(k) + '<span><b>' + STATUS[k].label + '</b><small>' + STATUS[k].sub + '</small></span></label>').join('');
+}
+function renderCheckin(){
+  if (!S.me) return;
+  $('#ci-hello').textContent = 'Hello, ' + S.me.name;
+  const e = entryOf(S.me.uid, S.today);
+  $('#ci-today').textContent = 'Today, ' + fmtLong(S.today) + ': ' + (e ? STATUS[e.s].label + (e.n ? ' (' + e.n + ')' : '') : 'no entry yet') + '.';
+  const f = $('#f-from'); if (!f.value) f.value = S.today;
+  renderMine();
+}
+function myRanges(){
+  const mine = days(S.me.uid), from = addDays(S.today, -7), out = [];
+  Object.keys(mine).filter(k => k >= from && mine[k] && STATUS[mine[k].s]).sort().forEach(k => {
+    const e = mine[k], last = out[out.length - 1];
+    if (last && addDays(last.to, 1) === k && last.s === e.s && last.n === (e.n || '')) last.to = k;
+    else out.push({ from:k, to:k, s:e.s, n:e.n || '' });
+  });
+  return out.slice(0, 60);
+}
+function renderMine(){
+  const list = myRanges(), ul = $('#mine-list');
+  if (!list.length){ ul.innerHTML = '<li class="dim">Nothing saved yet.</li>'; return; }
+  ul.innerHTML = list.map(r => {
+    const when = r.from === r.to ? fmtDay(r.from) : fmtDay(r.from) + ' to ' + fmtDay(r.to);
+    return '<li><span class="when">' + esc(when) + '</span><span class="what">' + pill(r.s) + (r.n ? '<span class="txt">' + esc(r.n) + '</span>' : '') + '</span>' +
+      '<button class="btn small" data-rm-from="' + r.from + '" data-rm-to="' + r.to + '" aria-label="Remove entry for ' + esc(when) + '">Remove</button></li>';
+  }).join('');
+}
+function buildUpdates(from, to, status, note, skip){
+  const up = {}; let d = from, n = 0, guard = 0;
+  while (d <= to && guard++ < 400){
+    if (!(status && skip && isWeekend(d))){
+      if (status) up[d] = note ? { s:status, n:note } : { s:status };
+      else if (days(S.me.uid)[d]) up[d] = null;
+      else { d = addDays(d, 1); continue; }
+      n++;
+    }
+    d = addDays(d, 1);
+  }
+  return { up, n };
+}
+async function saveEntry(clear){
+  const from = $('#f-from').value, to = $('#f-to').value || from;
+  if (!from) return setMsg('#ci-msg', 'Choose a date.', 'err');
+  if (to < from) return setMsg('#ci-msg', '"Until" must be on or after the start date.', 'err');
+  if ((parseYmd(to) - parseYmd(from)) / 86400000 > 366) return setMsg('#ci-msg', 'Choose a range of one year or less.', 'err');
+  const r = $('input[name="st"]:checked'), st = r ? r.value : '';
+  if (!clear && !st) return setMsg('#ci-msg', 'Choose a status.', 'err');
+  const note = $('#f-note').value.trim().slice(0, 100);
+  const { up, n } = buildUpdates(from, to, clear ? null : st, note, $('#f-skip').checked);
+  if (!n) return setMsg('#ci-msg', clear ? 'No saved entries in those days.' : 'Those days are all weekend days. Untick "Skip weekend days" to include them.', 'err');
+  const b1 = $('#save-btn'), b2 = $('#clear-btn'); b1.disabled = b2.disabled = true;
+  try {
+    await B.saveEntries(S.me.uid, up);
+    const span = from === to ? fmtDay(from) : fmtDay(from) + ' to ' + fmtDay(to);
+    setMsg('#ci-msg', clear ? 'Cleared ' + span + '.' : 'Saved ' + STATUS[st].label + ' for ' + span + '.', 'ok');
+  } catch (e) { setMsg('#ci-msg', e.message, 'err'); }
+  b1.disabled = b2.disabled = false;
+}
+async function removeRange(from, to){
+  const { up, n } = buildUpdates(from, to, null, '', false);
+  if (!n) return;
+  try { await B.saveEntries(S.me.uid, up); setMsg('#ci-msg', 'Removed.', 'ok'); } catch (e) { setMsg('#ci-msg', e.message, 'err'); }
+}
+
+/* ================= dashboard ================= */
+function period(){
+  const y = +S.date.slice(0, 4), m = +S.date.slice(5, 7);
+  if (S.mode === 'day') return { from:S.date, to:S.date, title:fmtLong(S.date), label:null };
+  if (S.mode === 'month') return { from:y + '-' + pad(m) + '-01', to:y + '-' + pad(m) + '-' + pad(daysInMonth(y, m)), title:MONL[m - 1] + ' ' + y, label:MONL[m - 1] + ' ' + y };
+  return { from:y + '-01-01', to:y + '-12-31', title:String(y), label:String(y) };
+}
+function renderNav(){
+  $$('.seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === S.mode)));
+  const lab = $('#nav-label'), p = period();
+  if (S.mode === 'day') lab.innerHTML = '<input type="date" id="dash-date" value="' + S.date + '" aria-label="Choose a date">';
+  else lab.textContent = p.label;
+}
+function gather(){
+  const p = period(), q = S.q.trim().toLowerCase();
+  const people = peopleOnBoard().filter(x => !q || (x.name || '').toLowerCase().includes(q));
+  const res = {}; CARD_ORDER.forEach(k => { res[k] = []; });
+  const unreported = [];
+  people.forEach(x => {
+    const mine = days(x.id), counts = {}; let any = false, note = '';
+    Object.keys(mine).forEach(d => {
+      if (d < p.from || d > p.to) return;
+      const e = mine[d]; if (!e || !STATUS[e.s]) return;
+      counts[e.s] = (counts[e.s] || 0) + 1; any = true; if (S.mode === 'day') note = e.n || '';
+    });
+    if (!any && S.mode === 'day') unreported.push(x);
+    Object.keys(counts).forEach(k => res[k].push({ p:x, count:counts[k], note }));
+  });
+  if (S.mode !== 'day') CARD_ORDER.forEach(k => res[k].sort((a, b) => b.count - a.count || byName(a.p, b.p)));
+  return { res, unreported, total:people.length, p };
+}
+function cardHtml(k, rows){
+  const day = S.mode === 'day';
+  const total = day ? rows.length : rows.reduce((s, r) => s + r.count, 0);
+  const sub = day ? (rows.length === 1 ? 'person' : 'people') : (total === 1 ? 'day' : 'days') + ' · ' + rows.length + (rows.length === 1 ? ' person' : ' people');
+  const items = rows.length ? rows.map(r =>
+    '<li><b>' + esc(r.p.name) + '</b>' + (day ? '' : '<span class="d">' + r.count + (r.count === 1 ? ' day' : ' days') + '</span>') +
+    (r.p.title ? '<span class="t">' + esc(r.p.title) + '</span>' : '') + (day && r.note ? '<span class="nt">' + esc(r.note) + '</span>' : '') + '</li>'
+  ).join('') : '<li class="none">No one</li>';
+  return '<section class="card" style="--c:var(' + STATUS[k].cv + ')" aria-label="' + STATUS[k].label + '"><div class="ch">' + chip(k) + '<h3>' + STATUS[k].label + '</h3></div>' +
+    '<div class="n">' + total + '</div><div class="sub">' + sub + '</div><ul class="plist">' + items + '</ul></section>';
+}
+let chartTimer = 0;
+function stackedChart(rows, labels, W, ariaLabel){
+  const H = 230, L = 34, R = 6, T = 12, B = 28, iw = W - L - R, ih = H - T - B;
+  const maxV = Math.max(1, ...rows.map(r => CARD_ORDER.reduce((s, k) => s + r[k], 0)));
+  const steps = [1,2,5,10,20,25,50,100,200,250,500,1000]; let step = 1000;
+  for (const s of steps){ if (maxV / s <= 4){ step = s; break; } }
+  const top = Math.ceil(maxV / step) * step; let s = '';
+  for (let v = 0; v <= top; v += step){
+    const y = T + ih - (v / top) * ih;
+    s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y + '" y2="' + y + '" style="stroke:var(--line)"/><text x="' + (L - 6) + '" y="' + (y + 4) + '" text-anchor="end" font-size="11" style="fill:var(--ink-2)">' + v + '</text>';
+  }
+  const n = rows.length, bw = iw / n, barw = Math.max(3, bw * 0.66), every = bw < 14 ? 5 : bw < 22 ? 2 : 1;
+  rows.forEach((r, i) => {
+    const x = L + i * bw + (bw - barw) / 2; let y = T + ih;
+    s += '<g><title>' + esc(labels[i]) + ': ' + CARD_ORDER.map(k => r[k] + ' ' + STATUS[k].label.toLowerCase()).join(', ') + '</title>';
+    CARD_ORDER.forEach(k => {
+      if (!r[k]) return; const h = (r[k] / top) * ih; y -= h;
+      s += '<rect x="' + x + '" y="' + y + '" width="' + barw + '" height="' + h + '" style="fill:var(' + STATUS[k].cv + ')"/>';
+      if (h >= 15 && barw >= 22) s += '<text x="' + (x + barw / 2) + '" y="' + (y + h / 2 + 4) + '" text-anchor="middle" font-size="11" font-weight="700" style="fill:var(--on-c)">' + r[k] + '</text>';
+    });
+    s += '</g>';
+    if (i % every === 0) s += '<text x="' + (L + i * bw + bw / 2) + '" y="' + (H - 9) + '" text-anchor="middle" font-size="11" style="fill:var(--ink-2)">' + esc(labels[i]) + '</text>';
+  });
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(ariaLabel) + '">' + s + '</svg>';
+}
+function chartHtml(){
+  const p = period(), y = +S.date.slice(0, 4), m = +S.date.slice(5, 7), people = peopleOnBoard();
+  let rows, labels, title;
+  if (S.mode === 'month'){
+    const dim = daysInMonth(y, m); rows = []; labels = [];
+    for (let d = 1; d <= dim; d++){ rows.push({ leave:0, telework:0, meeting:0, mission:0 }); labels.push(String(d)); }
+    people.forEach(x => { const mine = days(x.id); Object.keys(mine).forEach(d => { if (d < p.from || d > p.to) return; const e = mine[d]; if (e && STATUS[e.s]) rows[+d.slice(8, 10) - 1][e.s]++; }); });
+    title = 'People per day';
+  } else {
+    rows = []; labels = MON.slice();
+    for (let i = 0; i < 12; i++) rows.push({ leave:0, telework:0, meeting:0, mission:0 });
+    people.forEach(x => { const mine = days(x.id); Object.keys(mine).forEach(d => { if (d < p.from || d > p.to) return; const e = mine[d]; if (e && STATUS[e.s]) rows[+d.slice(5, 7) - 1][e.s]++; }); });
+    title = 'Days by month';
+  }
+  const W = Math.max(300, Math.round(($('#dash-body').clientWidth || 360) - 28));
+  const legend = '<div class="legend" style="display:flex;flex-wrap:wrap;gap:6px 16px;margin:6px 4px 8px;color:var(--ink-2);font-size:13px">' + CARD_ORDER.map(k => '<span style="display:inline-flex;gap:6px;align-items:center">' + chip(k, true) + STATUS[k].label + '</span>').join('') + '</div>';
+  return '<div class="chartbox"><h2>' + title + '</h2>' + legend + stackedChart(rows, labels, W, title + ' for ' + p.title) + '</div>';
+}
+function renderDash(){
+  renderNav();
+  const el = $('#dash-body');
+  if (!S.ready.dir || !S.ready.entries){ el.innerHTML = '<p class="empty">Loading…</p>'; return; }
+  if (!peopleOnBoard().length){ el.innerHTML = '<p class="empty">' + (isAdmin() ? 'No one is on the dashboard yet. Add people in the Staff tab.' : 'No staff on the dashboard yet.') + '</p>'; return; }
+  const g = gather();
+  let html = '<h2 class="dash-title">' + esc(g.p.title) + '</h2>';
+  if (S.mode === 'day' && isWeekend(S.date)) html += '<p class="banner">This is a weekend day, so entries are not expected.</p>';
+  html += '<div class="cards">' + CARD_ORDER.map(k => cardHtml(k, g.res[k])).join('') + '</div>';
+  if (S.mode === 'day' && g.unreported.length)
+    html += '<details class="unrep"><summary>' + g.unreported.length + ' of ' + g.total + ' have no entry for this day</summary><p>' + g.unreported.map(x => esc(x.name)).join(', ') + '</p></details>';
+  if (S.mode !== 'day') html += chartHtml();
+  el.innerHTML = html;
+}
+function shiftDate(dir){
+  const d = parseYmd(S.date);
+  if (S.mode === 'day') d.setDate(d.getDate() + dir);
+  else if (S.mode === 'month'){ d.setDate(1); d.setMonth(d.getMonth() + dir); }
+  else { d.setDate(1); d.setFullYear(d.getFullYear() + dir); }
+  S.date = ymd(d); renderDash();
+}
+
+/* ================= staff (administrators) ================= */
+function renderStaff(){
+  if (!isAdmin()) return;
+  const wk = $('#weekdays');
+  if (!wk.dataset.built){
+    wk.innerHTML = WDL.map((n, i) => '<label><input type="checkbox" data-wd="' + i + '"> ' + n + '</label>').join('');
+    wk.dataset.built = '1';
+  }
+  $$('input[data-wd]', wk).forEach(c => { c.checked = (S.settings.weekend || []).includes(+c.dataset.wd); });
+  const el = $('#people');
+  const ed = $('#edit-name'); if (ed){ S.editName = ed.value; S.editTitle = $('#edit-title').value; }
+  if (!S.users.length){ el.innerHTML = '<p class="empty">Loading…</p>'; return; }
+  const admins = S.users.filter(u => u.role === 'admin' && u.active).length;
+  el.innerHTML = '<ul class="people">' + S.users.slice().sort(byName).map(u => {
+    const mine = u.id === S.me.uid, editing = S.editingId === u.id;
+    const tags = (mine ? '<span class="tag">You</span>' : '') + (u.role === 'admin' ? '<span class="tag">Administrator</span>' : '') + (!u.active ? '<span class="tag">Deactivated</span>' : '') +
+      (u.active && u.mustChange ? '<span class="tag">Hasn\'t set own password</span>' : '') + (u.active && u.tracked === false ? '<span class="tag">Not on dashboard</span>' : '');
+    const main = editing
+      ? '<div class="editrow"><input type="text" id="edit-name" maxlength="80" value="' + esc(S.editName) + '" aria-label="Staff name"><input type="text" id="edit-title" maxlength="80" value="' + esc(S.editTitle) + '" aria-label="Title"></div>'
+      : '<div class="pname">' + esc(u.name) + tags + '</div><div class="pmeta">' + esc(u.title || 'No title') + ' · ' + esc(u.email) + '</div>';
+    let btns;
+    if (editing) btns = '<button class="btn small primary" data-act="save-edit" data-id="' + u.id + '">Save</button><button class="btn small" data-act="cancel-edit">Cancel</button>';
+    else {
+      btns = '<button class="btn small" data-act="edit" data-id="' + u.id + '">Edit</button><button class="btn small" data-act="reset" data-id="' + u.id + '">Send reset email</button>' +
+        '<button class="btn small" data-act="tracked" data-id="' + u.id + '">' + (u.tracked === false ? 'Show on dashboard' : 'Hide from dashboard') + '</button>';
+      if (!mine){
+        const last = u.role === 'admin' && u.active && admins <= 1;
+        btns += (last ? '' : '<button class="btn small" data-act="role" data-id="' + u.id + '">' + (u.role === 'admin' ? 'Make staff' : 'Make administrator') + '</button>') +
+          (last ? '' : '<button class="btn small' + (S.pending === 'off:' + u.id ? ' danger' : '') + '" data-act="active" data-id="' + u.id + '">' + (u.active ? (S.pending === 'off:' + u.id ? 'Confirm deactivate' : 'Deactivate') : 'Reactivate') + '</button>');
+      }
+    }
+    return '<li class="' + (u.active ? '' : 'arch') + '"><div class="pmain">' + main + '</div><div class="rowbtns">' + btns + '</div></li>';
+  }).join('') + '</ul><p class="hint">Deactivated people can\'t sign in and disappear from the dashboard. Their saved entries are kept.</p>';
+  const ri = $('#edit-name'); if (ri && S.editFocus){ ri.focus(); S.editFocus = false; }
+}
+function showSecret(name, email, pw){
+  $('#secret-title').innerHTML = 'Account created for <b>' + esc(name) + '</b>:';
+  $('#secret-text').textContent = 'Email: ' + email + '\nPassword: ' + pw;
+  $('#secret-text').style.whiteSpace = 'pre-wrap';
+  $('#secret-copy').textContent = 'Copy'; $('#secret').hidden = false;
+}
+async function addPerson(ev){
+  ev.preventDefault();
+  const d = { name:$('#c-name').value.trim().replace(/\s+/g, ' '), title:$('#c-title').value.trim().replace(/\s+/g, ' '), email:$('#c-email').value.trim().toLowerCase(),
+    password:$('#c-pass').value, role:$('#c-role').value, tracked:$('#c-tracked').checked };
+  $('#secret').hidden = true;
+  if (!d.name) return setMsg('#c-msg', 'Enter the staff name.', 'err');
+  if (!d.title) return setMsg('#c-msg', 'Enter the title.', 'err');
+  if (!EMAIL_RE.test(d.email)) return setMsg('#c-msg', 'Enter a valid email address.', 'err');
+  if (d.password.length < 8) return setMsg('#c-msg', 'The password needs at least 8 characters. Use Generate for a strong one.', 'err');
+  if (S.users.some(u => u.email === d.email)) return setMsg('#c-msg', 'That email already has an account.', 'err');
+  const b = $('#c-btn'); b.disabled = true; setMsg('#c-msg', '', '');
+  try {
+    await B.createUser(d);
+    showSecret(d.name, d.email, d.password);
+    ['c-name','c-title','c-email','c-pass'].forEach(id => { $('#' + id).value = ''; });
+    setMsg('#c-msg', 'Account created.', 'ok');
+  } catch (e) { setMsg('#c-msg', e.message, 'err'); }
+  b.disabled = false;
+}
+async function staffAct(act, id){
+  showAlert('');
+  const u = S.users.find(x => x.id === id);
+  try {
+    if (act === 'edit'){ S.editingId = id; S.editName = u.name; S.editTitle = u.title || ''; S.editFocus = true; renderStaff(); return; }
+    if (act === 'cancel-edit'){ S.editingId = null; renderStaff(); return; }
+    if (act === 'save-edit'){
+      const name = $('#edit-name').value.trim().replace(/\s+/g, ' '), title = $('#edit-title').value.trim().replace(/\s+/g, ' ');
+      if (!name) return showAlert('A name can\'t be empty.');
+      await B.updateUser(id, { name, title }); S.editingId = null;
+      if (id === S.me.uid){ S.me.name = name; S.me.title = title; $('#me-name').textContent = name; }
+    } else if (act === 'tracked') await B.updateUser(id, { tracked: u.tracked === false });
+    else if (act === 'role') await B.updateUser(id, { role: u.role === 'admin' ? 'staff' : 'admin' });
+    else if (act === 'reset'){ await B.sendReset(u.email); showAlert(''); window.alert(DEMO ? 'Demo mode: no email is sent.' : 'A password reset email was sent to ' + u.email + '.'); }
+    else if (act === 'active'){
+      if (u.active && S.pending !== 'off:' + id){
+        S.pending = 'off:' + id; renderStaff();
+        setTimeout(() => { if (S.pending === 'off:' + id){ S.pending = null; if (S.view === 'staff') renderStaff(); } }, 4000);
+        return;
+      }
+      S.pending = null; await B.updateUser(id, { active: !u.active });
+    }
+  } catch (e) { showAlert(e.message); }
+  renderStaff();
+}
+async function saveWeekend(){
+  const w = $$('input[data-wd]').filter(c => c.checked).map(c => +c.dataset.wd);
+  try { await B.saveSettings({ weekend:w }); } catch (e) { showAlert(e.message); }
+}
+
+/* ================= wiring ================= */
+function wire(){
+  buildOptions();
+  document.addEventListener('click', ev => {
+    const t = ev.target.closest('button'); if (!t) return;
+    if (t.dataset.tab){ show(t.dataset.tab); return; }
+    if (t.dataset.mode){ S.mode = t.dataset.mode; renderDash(); return; }
+    if (t.dataset.rmFrom){ removeRange(t.dataset.rmFrom, t.dataset.rmTo); return; }
+    if (t.dataset.act){ staffAct(t.dataset.act, t.dataset.id); return; }
+  });
+  document.addEventListener('change', ev => {
+    const t = ev.target;
+    if (t.id === 'dash-date' && t.value){ S.date = t.value; renderDash(); }
+    else if (t.name === 'st'){ $$('.opt').forEach(o => o.classList.toggle('on', o.contains(t) && t.checked)); $('#f-note').placeholder = STATUS[t.value].ph; }
+    else if (t.dataset && t.dataset.wd !== undefined) saveWeekend();
+    else if (t.id === 'c-role') $('#c-tracked').checked = t.value === 'staff';
+  });
+  $('#nav-prev').addEventListener('click', () => shiftDate(-1));
+  $('#nav-next').addEventListener('click', () => shiftDate(1));
+  $('#nav-today').addEventListener('click', () => { S.date = S.today; renderDash(); });
+  $('#dash-q').addEventListener('input', ev => { S.q = ev.target.value; renderDash(); });
+  $('#save-btn').addEventListener('click', () => saveEntry(false));
+  $('#clear-btn').addEventListener('click', () => saveEntry(true));
+  $('#f-note').addEventListener('keydown', ev => { if (ev.key === 'Enter') saveEntry(false); });
+  $('#login-form').addEventListener('submit', signIn);
+  $('#l-forgot').addEventListener('click', forgot);
+  $('#signout').addEventListener('click', async () => { try { await B.signOut(); } catch (e) {} });
+  $('#force-form').addEventListener('submit', ev => { ev.preventDefault(); changePw('f', '#f-msg', '#f-btn', true); });
+  $('#acc-form').addEventListener('submit', ev => { ev.preventDefault(); changePw('a', '#a-msg', '#a-btn', false); });
+  $('#a-reset').addEventListener('click', emailReset);
+  $('#add-form').addEventListener('submit', addPerson);
+  $('#c-gen').addEventListener('click', () => { $('#c-pass').value = randomPassword(); });
+  $('#secret-done').addEventListener('click', () => { $('#secret').hidden = true; $('#secret-text').textContent = ''; });
+  $('#secret-copy').addEventListener('click', async () => {
+    const txt = $('#secret-text').textContent;
+    try { await navigator.clipboard.writeText(txt); $('#secret-copy').textContent = 'Copied'; }
+    catch (e) { const r = document.createRange(); r.selectNodeContents($('#secret-text')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); $('#secret-copy').textContent = 'Press Ctrl+C'; }
+  });
+  window.addEventListener('resize', () => { clearTimeout(chartTimer); chartTimer = setTimeout(() => { if (S.view === 'dash' && S.mode !== 'day') renderDash(); }, 150); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    const t = ymd(new Date());
+    if (t !== S.today){ if (S.date === S.today) S.date = t; S.today = t; rerender(); }
+  });
+}
+
+/* ================= start ================= */
+async function start(){
+  wire();
+  if (DEMO){
+    $('#demo').hidden = false; $('#l-demo-hint').hidden = false;
+    $('#demo-reset').addEventListener('click', () => window.__demoReset());
+  }
+  try { B = DEMO ? makeDemo() : await makeFirebase(); }
+  catch (e) { show('login'); showAlert('Could not connect to the server. Check your internet connection and reload.'); return; }
+  B.onAuth(handleAuth);
+}
+start();
+</script>
+</body>
+</html>
