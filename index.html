@@ -219,6 +219,25 @@ legend{ font-weight:600; padding:0; margin-bottom:8px; }
   .card,.chartbox{ break-inside:avoid; }
   .unrep:not([open]) > p{ display:block; }
 }
+
+.me{ position:relative; }
+.rolesel{ min-height:32px; font:inherit; font-size:13px; font-weight:600; padding:2px 8px; border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--ink); }
+.bell{ position:relative; background:none; border:1px solid var(--line); border-radius:8px; width:38px; height:38px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:var(--ink); }
+.bell svg{ width:20px; height:20px; }
+.bell .badge{ position:absolute; top:-6px; right:-6px; min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:#D6453D; color:#fff; font-size:11px; font-weight:700; line-height:18px; text-align:center; }
+.npanel{ position:absolute; right:0; top:calc(100% + 6px); width:min(380px,92vw); max-height:70vh; overflow:auto; background:var(--surface); border:1px solid var(--line); border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,.18); z-index:40; }
+.npanel header{ display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-bottom:1px solid var(--line); font-weight:700; }
+.npanel ul{ list-style:none; margin:0; padding:0; }
+.npanel li button{ width:100%; text-align:left; background:none; border:0; border-bottom:1px solid var(--line); padding:11px 14px; font:inherit; color:var(--ink); cursor:pointer; display:block; }
+.npanel li button:hover{ background:var(--bg); }
+.npanel li.unread button{ font-weight:600; box-shadow:inset 3px 0 0 #D6453D; }
+.npanel .when{ display:block; color:var(--ink-2); font-size:12.5px; font-weight:400; margin-top:2px; }
+.npanel .empty{ padding:18px 14px; color:var(--ink-2); }
+.dbtn{ font:inherit; font-weight:600; background:none; border:0; border-bottom:1px dotted currentColor; color:var(--c); cursor:pointer; padding:0; white-space:nowrap; }
+.plist .dts{ grid-column:1 / -1; margin:6px 0 2px; padding:8px 10px; border-radius:6px; background:rgba(255,255,255,.07); font-size:13px; display:grid; gap:4px; }
+.plist .dts span{ color:var(--board-mute); }
+@media (max-width:700px){ .npanel{ position:fixed; left:8px; right:8px; top:58px; width:auto; } }
+@media print{ .bell,.npanel{ display:none !important; } }
 </style>
 </head>
 <body>
@@ -227,9 +246,10 @@ legend{ font-weight:600; padding:0; margin-bottom:8px; }
   <header class="top">
     <div class="brand"><img class="logo" src="logo.png" alt="" onerror="this.remove()"><span>Staff Status Board</span></div>
     <nav class="tabs" id="tabs" aria-label="Sections" hidden></nav>
-    <div class="me" id="me" hidden><span id="me-name"></span><button class="btn small" id="signout">Sign out</button></div>
+    <div class="me" id="me" hidden><button class="bell" id="bell" type="button" aria-label="Notifications" aria-haspopup="true" aria-expanded="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="badge" id="bell-n" hidden>0</span></button><span id="me-name"></span><button class="btn small" id="signout">Sign out</button></div>
   </header>
 
+  <div class="npanel" id="npanel" hidden role="dialog" aria-label="Notifications"></div>
   <div id="offline" class="offline" role="status" hidden>You are offline. Signing in and saving need an internet connection.</div>
   <div id="install" class="install" hidden>
     <span id="install-text"></span>
@@ -296,7 +316,7 @@ legend{ font-weight:600; padding:0; margin-bottom:8px; }
         </div>
         <div>
           <h2>Your entries</h2>
-          <p class="hint">Last 7 days and everything coming up.</p>
+          <p class="hint">Last 7 days and everything coming up. Use <b>Change</b> to edit an entry. Only an administrator can remove one.</p>
           <ul class="mine-list" id="mine-list"></ul>
           <div class="actions"><button class="btn" id="clear-all" type="button" hidden>Clear all my entries</button></div>
         </div>
@@ -348,7 +368,7 @@ legend{ font-weight:600; padding:0; margin-bottom:8px; }
             <div class="field"><label class="lbl" for="c-pass">Password</label>
               <div class="pwrow"><input type="text" id="c-pass" maxlength="128" autocomplete="off" spellcheck="false" autocapitalize="none"><button class="btn" id="c-gen" type="button">Generate</button></div>
             </div>
-            <div class="field"><label class="lbl" for="c-role">Role</label><select id="c-role"><option value="staff">Staff</option><option value="admin">Administrator</option></select></div>
+            <div class="field"><label class="lbl" for="c-role">Role</label><select id="c-role"><option value="staff">Staff</option><option value="supervisor">Supervisor (sees alerts)</option><option value="admin">Administrator</option></select></div>
           </div>
           <label class="check"><input type="checkbox" id="c-tracked" checked> Show on the dashboard and allow daily check-ins</label>
           <div class="actions"><button class="btn primary" id="c-btn" type="submit">Create account</button><span id="c-msg" class="msg" aria-live="polite" style="margin:0"></span></div>
@@ -530,6 +550,14 @@ async function makeFirebase(){
       await authM.updatePassword(u, next);
     }),
     clearMustChange: wrap(uid => fsM.updateDoc(fsM.doc(db, 'users', uid), { mustChange:false })),
+    subNotifications: (cb, err) => fsM.onSnapshot(fsM.query(fsM.collection(db, 'notifications'), fsM.orderBy('at', 'desc'), fsM.limit(50)),
+      snap => cb(snap.docs.map(d => ({ id:d.id, ...d.data() }))), e => err && err(friendly(e))),
+    addNotification: wrap(n => fsM.addDoc(fsM.collection(db, 'notifications'), n)),
+    markRead: wrap(async (ids, uid) => {
+      const batch = fsM.writeBatch(db);
+      ids.forEach(id => batch.update(fsM.doc(db, 'notifications', id), { readBy: fsM.arrayUnion(uid) }));
+      await batch.commit();
+    }),
     ensureDirectory: wrap(async (uid, p) => {
       const ref = fsM.doc(db, 'directory', uid), snap = await fsM.getDoc(ref);
       if (!snap.exists() || !snap.data().name) await fsM.setDoc(ref, { name:p.name, title:p.title || '', active:true, tracked:p.tracked !== false }, { merge:true });
@@ -584,6 +612,9 @@ function makeDemo(){
       u.password = next; persist();
     },
     clearMustChange: async uid => { st.users[uid].mustChange = false; persist(); },
+    subNotifications: sub(() => (st.notes || []).slice().sort((a, b) => b.at < a.at ? -1 : 1).slice(0, 50)),
+    addNotification: async n => { (st.notes = st.notes || []).push(Object.assign({ id:'n' + Date.now() + Math.random().toString(36).slice(2, 6) }, n)); persist(); },
+    markRead: async (ids, uid) => { (st.notes || []).forEach(n => { if (ids.includes(n.id)){ n.readBy = (n.readBy || []).concat(uid); } }); persist(); },
     ensureDirectory: async () => {},
     sendReset: async () => { /* no email in demo */ }
   };
@@ -594,13 +625,14 @@ const todayStr = ymd(new Date());
 const S = {
   me:null, dir:[], users:[], entries:{}, settings:{ weekend:[5,6] }, ready:{ dir:false, entries:false },
   view:'login', mode:'day', date:todayStr, q:'', today:todayStr,
-  sub:'people', rwho:'', editingId:null, editName:'', editTitle:'', pending:null, loginPw:''
+  notes:[], open:{}, sub:'people', rwho:'', editingId:null, editName:'', editTitle:'', pending:null, loginPw:''
 };
 let B = null, unsubs = [], authToken = 0;
 
 const showAlert = t => { const a = $('#alert'); a.textContent = t; a.hidden = !t; };
 const setMsg = (sel, text, kind) => { const m = $(sel); m.textContent = text; m.className = 'msg' + (kind ? ' ' + kind : ''); };
 const isAdmin = () => !!S.me && S.me.role === 'admin';
+const canSeeAlerts = () => !!S.me && (S.me.role === 'admin' || S.me.role === 'supervisor');
 const isWeekend = s => (S.settings.weekend || [5,6]).includes(parseYmd(s).getDay());
 const peopleOnBoard = () => S.dir.filter(p => p.name && p.active !== false && p.tracked !== false).sort(byName);
 const days = id => S.entries[id] || {};
@@ -647,6 +679,7 @@ function show(v){
   tabs.hidden = !inApp;
   if (inApp) tabs.innerHTML = tabsFor().map(t => '<button class="tab" data-tab="' + t[0] + '"' + (t[0] === v ? ' aria-current="page"' : '') + '>' + t[1] + '</button>').join('');
   $('#me').hidden = !S.me;
+  renderBell();
   if (S.me) $('#me-name').textContent = S.me.name;
   showAlert('');
   updateInstall();
@@ -690,7 +723,7 @@ async function handleAuth(u){
 }
 function teardown(){
   unsubs.forEach(f => { try { f && f(); } catch (e) {} });
-  unsubs = []; S.dir = []; S.users = []; S.entries = {}; S.ready = { dir:false, entries:false };
+  unsubs = []; S.dir = []; S.users = []; S.notes = []; S.entries = {}; S.ready = { dir:false, entries:false };
 }
 function subscribe(){
   const err = e => showAlert(e.message || 'Could not load data.');
@@ -698,6 +731,7 @@ function subscribe(){
   unsubs.push(B.subEntries(map => { S.entries = map; S.ready.entries = true; rerender(); }, err));
   unsubs.push(B.subSettings(s => { S.settings = { weekend: Array.isArray(s.weekend) ? s.weekend : [5,6] }; rerender(); }, err));
   if (isAdmin()) unsubs.push(B.subUsers(list => { S.users = list; rerender(); }, err));
+  if (canSeeAlerts()) unsubs.push(B.subNotifications(list => { S.notes = list.filter(n => n.uid !== S.me.uid); renderBell(); }, () => {}));
 }
 async function signIn(ev){
   ev.preventDefault();
@@ -760,6 +794,35 @@ function myRanges(){
   });
   return out.slice(0, 60);
 }
+const timeAgo = iso => {
+  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (!(m >= 0)) return ''; if (m < 1) return 'just now'; if (m < 60) return m + ' min ago';
+  const h = Math.round(m / 60); if (h < 24) return h + (h === 1 ? ' hour ago' : ' hours ago');
+  const d = Math.round(h / 24); return d + (d === 1 ? ' day ago' : ' days ago');
+};
+const unreadNotes = () => S.notes.filter(n => !(n.readBy || []).includes(S.me.uid));
+function renderBell(){
+  const bell = $('#bell'), show = !!S.me && !S.me.mustChange && canSeeAlerts() && S.view !== 'login' && S.view !== 'force';
+  bell.hidden = !show; if (!show){ $('#npanel').hidden = true; return; }
+  const n = unreadNotes().length, badge = $('#bell-n');
+  badge.hidden = !n; badge.textContent = n > 99 ? '99+' : String(n);
+  bell.setAttribute('aria-label', n ? 'Notifications, ' + n + ' unread' : 'Notifications');
+  const panel = $('#npanel'); if (panel.hidden) return;
+  const unread = n;
+  panel.innerHTML = '<header><span>Notifications</span><button class="btn small" id="n-readall" type="button"' + (unread ? '' : ' disabled') + '>Mark all as read</button></header>' +
+    (S.notes.length ? '<ul>' + S.notes.map(x => {
+      const span = x.from === x.to ? fmtDay(x.from) : fmtDay(x.from) + ' to ' + fmtDay(x.to);
+      const label = (STATUS[x.status] || { label:x.status }).label;
+      return '<li class="' + ((x.readBy || []).includes(S.me.uid) ? '' : 'unread') + '"><button type="button" data-note="' + esc(x.id) + '" data-date="' + esc(x.from) + '">' +
+        esc(x.name) + (x.kind === 'changed' ? ' changed their entry: ' : ' is ') + esc(label) + ', ' + esc(span) + (x.note ? ' (' + esc(x.note) + ')' : '') +
+        '<span class="when">' + esc(timeAgo(x.at)) + '</span></button></li>';
+    }).join('') + '</ul>' : '<p class="empty">No notifications yet. You will see an alert here whenever a staff member saves a status.</p>');
+}
+function toggleBell(force){
+  const panel = $('#npanel'), open = force !== undefined ? force : panel.hidden;
+  panel.hidden = !open; $('#bell').setAttribute('aria-expanded', String(open));
+  if (open) renderBell();
+}
 function updateRangeHint(){
   const from = $('#f-from').value, to = $('#f-to').value || from, el = $('#f-sum');
   if (!el) return;
@@ -770,12 +833,13 @@ function updateRangeHint(){
 }
 function renderMine(){
   const list = myRanges(), ul = $('#mine-list');
-  $('#clear-all').hidden = !Object.keys(days(S.me.uid)).length;
+  $('#clear-all').hidden = !isAdmin() || !Object.keys(days(S.me.uid)).length;
   if (!list.length){ ul.innerHTML = '<li class="dim">Nothing saved yet. Choose a status on the left and press Save status.</li>'; return; }
   ul.innerHTML = list.map(r => {
     const when = r.from === r.to ? fmtDay(r.from) : fmtDay(r.from) + ' to ' + fmtDay(r.to);
     return '<li><span class="when">' + esc(when) + '</span><span class="what">' + pill(r.s) + (r.n ? '<span class="txt">' + esc(r.n) + '</span>' : '') + '</span>' +
-      '<button class="btn small" data-rm-from="' + r.from + '" data-rm-to="' + r.to + '" aria-label="Remove entry for ' + esc(when) + '">Remove</button></li>';
+      '<button class="btn small" data-ed="1" data-from="' + r.from + '" data-to="' + r.to + '" data-s="' + r.s + '" data-n="' + esc(r.n || '') + '" aria-label="Change entry for ' + esc(when) + '">Change</button>' +
+      (isAdmin() ? '<button class="btn small" data-rm-from="' + r.from + '" data-rm-to="' + r.to + '" aria-label="Remove entry for ' + esc(when) + '">Remove</button>' : '') + '</li>';
   }).join('');
 }
 function buildUpdates(from, to, status, note, skip, uid){
@@ -800,11 +864,14 @@ async function saveEntry(clear){
   const r = $('input[name="st"]:checked'), st = r ? r.value : '';
   if (!clear && !st) return setMsg('#ci-msg', 'Choose a status.', 'err');
   const note = $('#f-note').value.trim().slice(0, 100);
+  if (clear && !isAdmin()) return;
   const { up, n } = buildUpdates(from, to, clear ? null : st, note, $('#f-skip').checked);
   if (!n) return setMsg('#ci-msg', clear ? 'No saved entries in those days.' : 'Those days are all weekend days. Untick "Skip weekend days" to include them.', 'err');
   const b1 = $('#save-btn'), b2 = $('#clear-btn'); b1.disabled = b2.disabled = true;
   try {
+    const existed = !clear && Object.keys(up).some(d => days(S.me.uid)[d]);
     await B.saveEntries(S.me.uid, up);
+    if (!clear && !isAdmin()) B.addNotification({ uid:S.me.uid, name:S.me.name, status:st, from, to, note, kind:existed ? 'changed' : 'new', at:new Date().toISOString(), readBy:[] }).catch(() => {});
     const span = from === to ? fmtDay(from) : fmtDay(from) + ' to ' + fmtDay(to);
     setMsg('#ci-msg', clear ? 'Cleared ' + span + '.' : 'Saved ' + STATUS[st].label + ' for ' + span + '.', 'ok');
   } catch (e) { setMsg('#ci-msg', e.message, 'err'); }
@@ -865,6 +932,7 @@ function resetCheckinForm(){
 }
 let clearAllTimer = 0;
 async function clearAllEntries(){
+  if (!isAdmin()) return;
   const b = $('#clear-all');
   if (!b.dataset.sure){
     b.dataset.sure = '1'; b.textContent = 'Tap again to remove ALL your entries';
@@ -877,6 +945,7 @@ async function clearAllEntries(){
   try { await B.saveEntries(S.me.uid, up); setMsg('#ci-msg', 'All your entries were removed.', 'ok'); } catch (e) { setMsg('#ci-msg', e.message, 'err'); }
 }
 async function removeRange(from, to){
+  if (!isAdmin()) return;
   const { up, n } = buildUpdates(from, to, null, '', false);
   if (!n) return;
   try { await B.saveEntries(S.me.uid, up); setMsg('#ci-msg', 'Removed.', 'ok'); } catch (e) { setMsg('#ci-msg', e.message, 'err'); }
@@ -903,25 +972,40 @@ function gather(){
   const res = {}; CARD_ORDER.forEach(k => { res[k] = []; });
   const unreported = [];
   people.forEach(x => {
-    const mine = days(x.id), counts = {}; let any = false, note = '';
-    Object.keys(mine).forEach(d => {
+    const mine = days(x.id), counts = {}, lists = {}; let any = false, note = '';
+    Object.keys(mine).sort().forEach(d => {
       if (d < p.from || d > p.to) return;
       const e = mine[d]; if (!e || !STATUS[e.s]) return;
       counts[e.s] = (counts[e.s] || 0) + 1; any = true; if (S.mode === 'day') note = e.n || '';
+      (lists[e.s] = lists[e.s] || []).push({ d, n:e.n || '' });
     });
     if (!any && S.mode === 'day') unreported.push(x);
-    Object.keys(counts).forEach(k => res[k].push({ p:x, count:counts[k], note }));
+    Object.keys(counts).forEach(k => res[k].push({ p:x, count:counts[k], note, dates:lists[k] }));
   });
   if (S.mode !== 'day') CARD_ORDER.forEach(k => res[k].sort((a, b) => b.count - a.count || byName(a.p, b.p)));
   return { res, unreported, total:people.length, p };
+}
+function dateRanges(list){
+  const out = [];
+  list.forEach(x => {
+    const last = out[out.length - 1];
+    let adj = false;
+    if (last && last.n === x.n){
+      let d = addDays(last.to, 1); adj = true;
+      while (d < x.d){ if (!isWeekend(d)){ adj = false; break; } d = addDays(d, 1); }
+    }
+    if (adj){ last.to = x.d; last.count++; } else out.push({ from:x.d, to:x.d, n:x.n, count:1 });
+  });
+  return out;
 }
 function cardHtml(k, rows){
   const day = S.mode === 'day';
   const total = day ? rows.length : rows.reduce((s, r) => s + r.count, 0);
   const sub = day ? (rows.length === 1 ? 'person' : 'people') : (total === 1 ? 'day' : 'days') + ' · ' + rows.length + (rows.length === 1 ? ' person' : ' people');
   const items = rows.length ? rows.map(r =>
-    '<li><b>' + esc(r.p.name) + '</b>' + (day ? '' : '<span class="d">' + r.count + (r.count === 1 ? ' day' : ' days') + '</span>') +
-    (r.p.title ? '<span class="t">' + esc(r.p.title) + '</span>' : '') + (day && r.note ? '<span class="nt">' + esc(r.note) + '</span>' : '') + '</li>'
+    '<li><b>' + esc(r.p.name) + '</b>' + (day ? '' : '<button class="d dbtn" type="button" data-open="' + esc(r.p.id + '|' + k) + '" aria-expanded="' + !!S.open[r.p.id + '|' + k] + '">' + r.count + (r.count === 1 ? ' day' : ' days') + '</button>') +
+    (r.p.title ? '<span class="t">' + esc(r.p.title) + '</span>' : '') + (day && r.note ? '<span class="nt">' + esc(r.note) + '</span>' : '') +
+    (!day && S.open[r.p.id + '|' + k] ? '<div class="dts">' + dateRanges(r.dates).map(g => '<div>' + (g.from === g.to ? fmtDay(g.from) : fmtDay(g.from) + ' to ' + fmtDay(g.to) + ' <span>(' + g.count + ' days)</span>') + (g.n ? ' <span>· ' + esc(g.n) + '</span>' : '') + '</div>').join('') + '</div>' : '') + '</li>'
   ).join('') : '<li class="none">No one</li>';
   return '<section class="card" style="--c:var(' + STATUS[k].cv + ')" aria-label="' + STATUS[k].label + '"><div class="ch">' + chip(k) + '<h3>' + STATUS[k].label + '</h3></div>' +
     '<div class="n">' + total + '</div><div class="sub">' + sub + '</div><ul class="plist">' + items + '</ul></section>';
@@ -1063,7 +1147,7 @@ function renderStaff(){
   const admins = S.users.filter(u => u.role === 'admin' && u.active).length;
   el.innerHTML = '<ul class="people">' + S.users.slice().sort(byName).map(u => {
     const mine = u.id === S.me.uid, editing = S.editingId === u.id;
-    const tags = (mine ? '<span class="tag">You</span>' : '') + (u.role === 'admin' ? '<span class="tag">Administrator</span>' : '') + (!u.active ? '<span class="tag">Deactivated</span>' : '') +
+    const tags = (mine ? '<span class="tag">You</span>' : '') + (u.role === 'admin' ? '<span class="tag">Administrator</span>' : u.role === 'supervisor' ? '<span class="tag">Supervisor</span>' : '') + (!u.active ? '<span class="tag">Deactivated</span>' : '') +
       (u.active && u.mustChange ? '<span class="tag">Hasn\'t set own password</span>' : '') + (u.active && u.tracked === false ? '<span class="tag">Not on dashboard</span>' : '');
     const main = editing
       ? '<div class="editrow"><input type="text" id="edit-name" maxlength="80" value="' + esc(S.editName) + '" aria-label="Staff name"><input type="text" id="edit-title" maxlength="80" value="' + esc(S.editTitle) + '" aria-label="Title"></div>'
@@ -1075,7 +1159,7 @@ function renderStaff(){
         '<button class="btn small" data-act="tracked" data-id="' + u.id + '">' + (u.tracked === false ? 'Show on dashboard' : 'Hide from dashboard') + '</button>';
       if (!mine){
         const last = u.role === 'admin' && u.active && admins <= 1;
-        btns += (last ? '' : '<button class="btn small" data-act="role" data-id="' + u.id + '">' + (u.role === 'admin' ? 'Make staff' : 'Make administrator') + '</button>') +
+        btns += (last ? '' : '<select class="rolesel" data-role-id="' + u.id + '" aria-label="Role for ' + esc(u.name) + '"><option value="staff"' + (u.role !== 'admin' && u.role !== 'supervisor' ? ' selected' : '') + '>Staff</option><option value="supervisor"' + (u.role === 'supervisor' ? ' selected' : '') + '>Supervisor</option><option value="admin"' + (u.role === 'admin' ? ' selected' : '') + '>Administrator</option></select>') +
           (last ? '' : '<button class="btn small' + (S.pending === 'off:' + u.id ? ' danger' : '') + '" data-act="active" data-id="' + u.id + '">' + (u.active ? (S.pending === 'off:' + u.id ? 'Confirm deactivate' : 'Deactivate') : 'Reactivate') + '</button>');
       }
     }
@@ -1120,7 +1204,6 @@ async function staffAct(act, id){
       await B.updateUser(id, { name, title }); S.editingId = null;
       if (id === S.me.uid){ S.me.name = name; S.me.title = title; $('#me-name').textContent = name; }
     } else if (act === 'tracked') await B.updateUser(id, { tracked: u.tracked === false });
-    else if (act === 'role') await B.updateUser(id, { role: u.role === 'admin' ? 'staff' : 'admin' });
     else if (act === 'reset'){ await B.sendReset(u.email); showAlert(''); window.alert(DEMO ? 'Demo mode: no email is sent.' : 'A password reset email was sent to ' + u.email + '.'); }
     else if (act === 'active'){
       if (u.active && S.pending !== 'off:' + id){
@@ -1142,20 +1225,36 @@ async function saveWeekend(){
 function wire(){
   buildOptions();
   document.addEventListener('click', ev => {
+    if (!ev.target.closest('#npanel') && !ev.target.closest('#bell') && !$('#npanel').hidden) toggleBell(false);
     const t = ev.target.closest('button'); if (!t) return;
+    if (t.id === 'bell'){ toggleBell(); return; }
+    if (t.id === 'n-readall'){ const ids = unreadNotes().map(n => n.id); if (ids.length) B.markRead(ids, S.me.uid).catch(e => showAlert(e.message)); return; }
+    if (t.dataset.note){
+      const n = S.notes.find(x => x.id === t.dataset.note);
+      if (n && !(n.readBy || []).includes(S.me.uid)) B.markRead([n.id], S.me.uid).catch(() => {});
+      toggleBell(false); S.mode = 'day'; S.date = t.dataset.date; show('dash'); return;
+    }
+    if (t.dataset.open){ S.open[t.dataset.open] = !S.open[t.dataset.open]; renderDash(); return; }
+    if (t.dataset.ed){
+      const r = $('input[name="st"][value="' + t.dataset.s + '"]'); if (r){ r.checked = true; r.dispatchEvent(new Event('change', { bubbles:true })); }
+      $('#f-from').value = t.dataset.from; $('#f-to').value = t.dataset.to === t.dataset.from ? '' : t.dataset.to; $('#f-note').value = t.dataset.n || '';
+      $('#f-skip').checked = false; updateRangeHint(); setMsg('#ci-msg', 'Change the details, then press Save status.', 'ok'); window.scrollTo(0, 0); return;
+    }
     if (t.dataset.tab){ show(t.dataset.tab); return; }
     if (t.dataset.sub){ S.sub = t.dataset.sub; renderStaff(); return; }
     if (t.dataset.mode){ S.mode = t.dataset.mode; renderDash(); return; }
     if (t.dataset.rmFrom){ removeRange(t.dataset.rmFrom, t.dataset.rmTo); return; }
     if (t.dataset.act){ staffAct(t.dataset.act, t.dataset.id); return; }
   });
+  document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !$('#npanel').hidden){ toggleBell(false); $('#bell').focus(); } });
   document.addEventListener('change', ev => {
     const t = ev.target;
     if (t.id === 'dash-date' && t.value){ S.date = t.value; renderDash(); }
     else if (t.name === 'st'){ $$('.opt').forEach(o => o.classList.toggle('on', o.contains(t) && t.checked)); $('#f-note').placeholder = STATUS[t.value].ph; }
     else if (t.dataset && t.dataset.wd !== undefined) saveWeekend();
     else if (t.id === 'r-who'){ S.rwho = t.value; renderDash(); }
-    else if (t.id === 'c-role') $('#c-tracked').checked = t.value === 'staff';
+    else if (t.dataset && t.dataset.roleId){ const u = S.users.find(x => x.id === t.dataset.roleId); if (u && u.role !== t.value) B.updateUser(u.id, { role:t.value }).catch(e => showAlert(e.message)); }
+    else if (t.id === 'c-role') $('#c-tracked').checked = t.value !== 'admin';
   });
   $('#exp-csv').addEventListener('click', exportCsv);
   $('#exp-print').addEventListener('click', () => { $('#print-title').textContent = 'Staff Status Board - ' + (S.mode === 'report' ? 'Report ' + period().title : period().title) + ' - printed ' + fmtLong(S.today); window.print(); });
