@@ -80,7 +80,7 @@ input[type="text"],input[type="email"],input[type="password"],input[type="date"]
 .check{ display:flex; gap:8px; align-items:center; margin-top:14px; }
 .check input{ width:18px; height:18px; }
 .actions{ display:flex; flex-wrap:wrap; gap:10px; margin-top:20px; align-items:center; }
-.msg{ font-weight:500; min-height:1.5em; margin-top:12px; }
+.msg{ font-weight:500; min-height:1.5em; margin-top:12px; overflow-wrap:anywhere; }
 .msg.ok{ color:var(--ok); } .msg.err{ color:var(--danger); }
 .pwrow{ display:flex; gap:8px; }
 .pwrow input{ flex:1; min-width:0; }
@@ -569,7 +569,9 @@ async function handleAuth(u){
     if (token !== authToken) return;
     if (!p || p.active !== true){
       await B.signOut();
-      setMsg('#l-msg', 'This account is not active. Ask your administrator.', 'err');
+      setMsg('#l-msg', !p
+        ? 'Signed in, but no profile was found for this login. In Firestore, the collection must be named users and the Document ID must be exactly: ' + u.uid
+        : 'Your profile was found, but its "active" field must be a boolean set to true. It is currently: ' + JSON.stringify(p.active) + '. Ask your administrator.', 'err');
       return;
     }
     S.me = Object.assign({}, p, { uid:u.uid, email:u.email || p.email });
