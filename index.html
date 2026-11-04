@@ -478,7 +478,16 @@ function friendly(e){
     'auth/user-disabled':'This account has been disabled.',
     'permission-denied':'You do not have permission to do that.', 'unavailable':'Cannot reach the server. Try again.'
   };
-  return new Error(map[c] || 'Something went wrong. Try again.');
+  const extra = {
+    'auth/operation-not-allowed':'Email/password sign-in is switched off in Firebase (Authentication > Sign-in method).',
+    'auth/invalid-api-key':'The Firebase key in firebase-config.js is not accepted.',
+    'auth/api-key-not-valid':'The Firebase key in firebase-config.js is not accepted.',
+    'auth/unauthorized-domain':'This website address is not in Firebase Authentication > Settings > Authorized domains.',
+    'auth/quota-exceeded':'Daily sign-in limit reached. Try again later.', 'auth/missing-password':'Enter your password.'
+  };
+  if (extra[c]) return new Error(extra[c]);
+  if (c.indexOf('requests-from-referer') >= 0 || c.indexOf('API_KEY_HTTP_REFERRER') >= 0) return new Error('Google is blocking this website address for the Firebase key. In Google Cloud > Credentials, add this site to the key\'s allowed websites. (' + c + ')');
+  return new Error(map[c] || ('Something went wrong. Try again.' + (c ? ' (' + c + ')' : '')));
 }
 
 /* ---- Firebase (Auth + Firestore) ---- */
